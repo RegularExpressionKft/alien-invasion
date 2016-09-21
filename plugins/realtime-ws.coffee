@@ -1,0 +1,89 @@
+uuid = require 'uuid'
+_ = require 'lodash'
+
+AlienWs = require 'alien-utils/ws-alien'
+
+AlienPlugin = require '../plugin'
+
+# TODO machine readable errors
+
+class AlienRealtimeWsClient extends AlienWs
+  constructor: ->
+    ret = super
+    @app.backplane.register @id, @_onBpEvent if @app? and @id?
+    return ret
+
+  messageTypes: @::messageTypes.derive
+    subscribe: (msg) -> @subscribe @_checkChannels msg
+    unsubscribe: (msg) -> @unsubscribe @_checkChannels msg
+
+  subscribe: (channels) ->
+    subscribed = @app.backplane.subscribe @id, channels
+    @debug 'subscribed', subscribed
+    @sendJSON
+      type: 'subscribed'
+      channels: subscribed
+    subscribed
+
+  unsubscribe: (channels) ->
+    unsubscribed = @app.backplane.unsubscribe @id, channels
+    @debug 'unsubscribed', unsubscribed
+    @sendJSON
+      type: 'unsubscribed'
+      channels: unsubscribed
+    unsubscribed
+
+  _onBpEvent: (channel, json) =>
+    @debug "BpEvent: #{channel}", json
+    @sendJSON
+      type: 'event'
+      channel: channel
+      data: json
+    null
+
+  _onWsOpen: ->
+    ret = super
+    @sendJSON id_packet if id_packet = @_assembleIdPacket()
+    ret
+
+  _onWsClosed: ->
+    ret = super
+    @app.backplane.unregister @id
+    @emit 'close', @
+    ret
+
+  _assembleIdPacket: ->
+    type: 'server'
+    protocol: 'alienWs/0'
+    wsId: @id
+
+  _checkChannels: (msg) ->
+    error = if !_.isArray msg.channels or !msg.channels.every _.isString
+      'msg.channels should be an array of strings.'
+    else if !_.isEmpty _.omit msg, ['type', 'channels']
+      'msg should only contain type, channels'
+
+    if error?
+      error = new Error error
+      error.pkt = msg
+      @fail error
+    msg.channels
+
+class AlienRealtimeWs extends AlienPlugin
+  defaultConfig:
+    wsModule: 'ws-server'
+    uri: '/realtime'
+
+  Client: AlienRealtimeWsClient
+
+  wsModule: -> @app.module @config 'wsModule'
+
+  _init: ->
+    @wsModule().addRoute (@config 'uri'), @onServerConnection
+    null
+
+  onServerConnection: (wsc, params, next) =>
+    @Client.fromAlienServer @, wsc, params, next
+    null
+
+module.exports = AlienRealtimeWs
