@@ -58,10 +58,11 @@ class AlienInvasion extends EventEmitter
     null
 
   makeStash: ->
+    stash = @Stash.create arguments...
     cb = _.once -> @submitRealtimeEvents()
-    @logger.decorate @Stash.create arguments...
-           .on 'commit', cb
-           .on 'success', cb
+    (stash.logger ? @createLogger stash.id).decorate stash
+                                           .on 'commit', cb
+                                           .on 'success', cb
 
   # ==== Backplane
 
