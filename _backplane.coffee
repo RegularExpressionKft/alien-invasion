@@ -6,11 +6,11 @@ class AlienBackplane
     #   id: 'uniqueString'
     #   channels:
     #     channel_id: @channels[channel_id]
-    @endpoints = {}
+    @endpoints = Object.create null
 
     # @channels[channel_id] =
     #   endpoint_id: @endpoints[endpoint_id]
-    @channels = {}
+    @channels = Object.create null
 
   _unsubscribe: (channel_id, endpoint_id) ->
     endpoints = @channels[channel_id]
@@ -21,14 +21,17 @@ class AlienBackplane
   register: (endpoint_id, cb) ->
     if @endpoints[endpoint_id]?
       throw new Error "Duplicate endpoint: #{endpoint_id}"
-    @endpoints[endpoint_id] = id: endpoint_id, cb: cb, channels: {}
+    @endpoints[endpoint_id] =
+      id: endpoint_id
+      cb: cb
+      channels: Object.create null
     @
   unregister: (endpoint_id) ->
-    _.forOwn @endpoints[endpoint_id]?.channels,
-      (channel, channel_id) =>
+    if @endpoints[endpoint_id]?
+      for channel_id, channel of @endpoints[endpoint_id].channels
         delete channel[endpoint_id]
         delete @channels[channel_id] if _.isEmpty channel
-    delete @endpoints[endpoint_id]
+      delete @endpoints[endpoint_id]
     @
 
   subscribe: (endpoint_id, channel_ids...) ->
@@ -75,9 +78,7 @@ class AlienBackplane
 
   publish: (args...) ->
     channel_id = args[0]
-    channel = @channels[channel_id]
-    if channel?
-      _.forOwn channel, (endpoint) => endpoint.cb args...
+    endpoint.cb args... for endpoint_id, endpoint of @channels[channel_id]
     @
 
 module.exports = AlienBackplane
