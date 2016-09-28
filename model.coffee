@@ -240,7 +240,7 @@ class AlienModel extends AlienCommander
 
 # ---- Loaders ----------------------------------------------------------------
 
-  _buildQuery: (s, op, filters, db_options, qb) ->
+  _buildQuery: (s, op, db_op, filters, db_options, qb) ->
     if _.isObject filters
       for name, value of filters
         if _.isFunction value
@@ -252,7 +252,9 @@ class AlienModel extends AlienCommander
         else
           qb.where name, value
     else
-      qb.where 'id', filters
+      qb.where @idFields[0], filters
+
+    qb.limit 2 if db_op is 'select-one'
 
     # s.debug "#{@name} SQL", qb.toString()
     qb
@@ -263,7 +265,8 @@ class AlienModel extends AlienCommander
     Promise.join p_filters, p_db_options,
       (filters, db_options) =>
         @bookshelfModel.query (qb) =>
-                         @_buildQuery s, op, filters, db_options, qb
+                         @_buildQuery s, op, 'select-many', filters,
+                           db_options, qb
                        .fetchAll db_options
 
   promiseLoadedDbObject: (s, op, p_id, p_db_options) ->
@@ -272,8 +275,7 @@ class AlienModel extends AlienCommander
     Promise.join p_id, p_db_options,
       (id, db_options) =>
         @bookshelfModel.query (qb) =>
-                         @_buildQuery s, op, id, db_options, qb
-                           .limit 2
+                         @_buildQuery s, op, 'select-one', id, db_options, qb
                        .fetchAll db_options
                        .then (objs) =>
                          if objs?.length > 0
