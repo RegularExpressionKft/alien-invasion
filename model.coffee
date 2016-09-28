@@ -240,18 +240,24 @@ class AlienModel extends AlienCommander
 
 # ---- Loaders ----------------------------------------------------------------
 
-  _buildLoadManyQuery: (s, op, filters, db_options, qb) ->
-    for name, value of filters
-      if _.isFunction value
-        value.call @, s, op, filters, db_options, qb, name, value
-      else if _.isArray value
-        qb.where name, 'in', value
-      else if _.isObject value
-        qb.where name, operator, argument for operator, argument of value
-      else
-        qb.where name, value
+  _buildQuery: (s, op, db_op, filters, db_options, qb) ->
+    if _.isObject filters
+      for name, value of filters
+        if _.isFunction value
+          value.call @, s, op, filters, db_options, qb, name, value
+        else if _.isArray value
+          qb.where name, 'in', value
+        else if _.isObject value
+          qb.where name, operator, argument for operator, argument of value
+        else
+          qb.where name, value
+    else
+      qb.where @idFields[0], filters
+
+    qb.limit 2 if db_op is 'select-one'
+
     # s.debug "#{@name} SQL", qb.toString()
-    null
+    qb
 
   promiseLoadedDbObjects: (s, op, p_filters, p_db_options) ->
     p_filters ?= op.promise s, 'filters' if op?
@@ -259,7 +265,8 @@ class AlienModel extends AlienCommander
     Promise.join p_filters, p_db_options,
       (filters, db_options) =>
         @bookshelfModel.query (qb) =>
-                         @_buildLoadManyQuery s, op, filters, db_options, qb
+                         @_buildQuery s, op, 'select-many', filters,
+                           db_options, qb
                        .fetchAll db_options
 
   promiseLoadedDbObject: (s, op, p_id, p_db_options) ->
@@ -268,8 +275,7 @@ class AlienModel extends AlienCommander
     Promise.join p_id, p_db_options,
       (id, db_options) =>
         @bookshelfModel.query (qb) =>
-                         qb.where id
-                           .limit 2
+                         @_buildQuery s, op, 'select-one', id, db_options, qb
                        .fetchAll db_options
                        .then (objs) =>
                          if objs?.length > 0
