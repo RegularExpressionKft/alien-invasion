@@ -393,9 +393,9 @@ class AlienModel extends AlienCommander
 # ==== Hooks ==================================================================
 
   hooks: @commands
+      accessControl: 'defaultAccessControl'
       check: 'defaultCheck'
       dbOptions: 'defaultDbOptions'
-      accessControl: 'defaultAccessControl'
       done: 'defaultDone'
       event: 'defaultEvent'
       eventChannel: 'defaultEventChannel'
