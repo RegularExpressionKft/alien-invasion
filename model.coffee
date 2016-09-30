@@ -393,7 +393,8 @@ class AlienModel extends AlienCommander
 # ==== Hooks ==================================================================
 
   hooks: @commands
-      accessControl: 'defaultAccessControl'
+      accessFilter: 'defaultAccessFilter'
+      accessGrant: 'defaultAccessGrant'
       check: 'defaultCheck'
       dbOptions: 'defaultDbOptions'
       done: 'defaultDone'
@@ -432,8 +433,10 @@ class AlienModel extends AlienCommander
       @opHook 'importSafeParameters', s, op, safe_params
     if unsafe_params?
       @opHook 'importUnsafeParameters', s, op, unsafe_params
-    @opHook 'action', s, op
-    .then (result) => @opHook 'accessControl', s, op, result
+
+    @opHook 'accessGrant', s, op
+    .then => @opHook 'action', s, op
+    .then (result) => @opHook 'accessFilter', s, op, result
     .then (result) => @opHook 'done', s, op, result
   api: (s, op_name, options, safe_params, unsafe_params) ->
     if (gop = @ops[op_name])?
@@ -451,8 +454,11 @@ class AlienModel extends AlienCommander
       (@opHook 'sendEvent', s, op, result),
       (response, event) => response
 
-  defaultAccessControl: (s, op, result) ->
+  defaultAccessFilter: (s, op, result) ->
     Promise.resolve result
+
+  defaultAccessGrant: (s, op) ->
+    Promise.resolve()
 
 # ==== Checkers ===============================================================
 
