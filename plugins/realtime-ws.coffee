@@ -35,6 +35,19 @@ class AlienRealtimeWsClient extends AlienWs
 
   _onBpEvent: (channel, json) =>
     @debug "BpEvent: #{channel}", json
+    # TODO websocket authentication
+    # if json.model? and (model = @app.plugin('models').model json.model)?
+    #   model.opHook 'accessFilter', TODO.s, TODO.op, json, 'event'
+    #        .then (json) =>
+    #          @sendJSON
+    #            type: 'event'
+    #            channel: channel
+    #            data: json
+    # else
+    #   @sendJSON
+    #     type: 'event'
+    #     channel: channel
+    #     data: json
     @sendJSON
       type: 'event'
       channel: channel

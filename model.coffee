@@ -436,7 +436,6 @@ class AlienModel extends AlienCommander
 
     @opHook 'accessGrant', s, op
     .then => @opHook 'action', s, op
-    .then (result) => @opHook 'accessFilter', s, op, result
     .then (result) => @opHook 'done', s, op, result
   api: (s, op_name, options, safe_params, unsafe_params) ->
     if (gop = @ops[op_name])?
@@ -454,7 +453,7 @@ class AlienModel extends AlienCommander
       (@opHook 'sendEvent', s, op, result),
       (response, event) => response
 
-  defaultAccessFilter: (s, op, result) ->
+  defaultAccessFilter: (s, op, result, context) ->
     Promise.resolve result
 
   defaultAccessGrant: (s, op) ->
@@ -590,7 +589,9 @@ class AlienModel extends AlienCommander
 
   # TODO make MCI optional
   defaultResponse: (s, op, result) ->
-    Promise.resolve @opHook 'json', s, op, result, 'response'
+    context = 'response'
+    Promise.resolve @opHook 'json', s, op, result, context
+           .then (json) => @opHook 'accessFilter', s, op, json, context
            .then (json) =>
              Mci.jsonResponse op.responseStatus ? 200, json
 
