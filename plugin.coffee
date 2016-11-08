@@ -1,6 +1,7 @@
+AlienCommander = require 'alien-utils/commander'
 _ = require 'lodash'
 
-class AlienPlugin
+class AlienPlugin extends AlienCommander
   constructor: (@app, @moduleName, cfgs...) ->
     @app.decorateWithNewLogger @, @moduleName
 
