@@ -10,7 +10,8 @@ AlienPlugin = require '../plugin'
 class AlienRealtimeWsClient extends AlienWs
   constructor: ->
     ret = super
-    @app.backplane.register @id, @_onBpEvent if @app? and @id?
+    @app.backplane.register @id, @_onBpEvent
+                  .subscribe @id, "RealtimeWs:#{@id}"
     return ret
 
   messageTypes: @::messageTypes.derive
@@ -96,7 +97,7 @@ class AlienRealtimeWs extends AlienPlugin
     null
 
   onServerConnection: (wsc, params, next) =>
-    @Client.fromAlienServer @, wsc, params, next
+    @emit 'connect', @Client.fromAlienServer @, wsc, params, next
     null
 
 module.exports = AlienRealtimeWs
