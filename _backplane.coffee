@@ -76,9 +76,8 @@ class AlienBackplane
       throw new Error "Unknown endpoint: #{endpoint_id}"
     _.keys endpoint.channels
 
-  publish: (args...) ->
-    channel_id = args[0]
-    endpoint.cb args... for endpoint_id, endpoint of @channels[channel_id]
+  publish: (channel_id, args...) ->
+    endpoint.cb arguments... for endpoint_id, endpoint of @channels[channel_id]
     @
 
 module.exports = AlienBackplane
