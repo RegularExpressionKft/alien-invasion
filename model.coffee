@@ -332,15 +332,15 @@ class AlienModel extends AlienCommander
         Promise.join p_db_object,
           (db_object) =>
             db_options_ = _.extend require: true, db_options
-            if !db_object.isNew() and (db_options_.patch ?= true)
-              save = _.filter db_object.keys(), (k) -> db_object.hasChanged k
-              save = @bookshelfModel.idAttribute unless save.length > 0
-              save = db_object.pick save
-            else
-              save = null
-            # s.debug "#{@name}.promiseSavedDbObject", db_object
-            db_object.save save, db_options_
-                     .catch @make404 s, op, @bookshelfModel.NoRowsUpdatedError
+            p = if !db_object.isNew() and (db_options_.patch ?= true)
+                save = _.filter db_object.keys(), (k) -> db_object.hasChanged k
+                if save.length
+                  db_object.save db_object.pick(save), db_options_
+                else
+                  Promise.resolve db_object
+              else
+                db_object.save null, db_options_
+            p.catch @make404 s, op, @bookshelfModel.NoRowsUpdatedError
 
   _directUpdateDbObject: (s, op, p_id, p_properties, p_db_options) ->
     db_op = 'update-direct'
