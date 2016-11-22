@@ -383,7 +383,7 @@ class AlienModelBase extends AlienCommander
       event.id = id if (id = op.getCached s, 'id')?
 
       if result? and op?.isObjectInEvent
-        @opHook 'json', s, op, result, 'event'
+        Promise.resolve @opHook 'json', s, op, result, 'event'
         .then (json) =>
           event.object = json if json?
           event
