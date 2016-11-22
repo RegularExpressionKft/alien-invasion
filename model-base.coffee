@@ -466,8 +466,12 @@ class AlienModelBase extends AlienCommander
       isIdInChannel: true
       isObjectInEvent: false
 
-  @addDefaultOps: ->
-   @::ops = @makeOps @::ops, _.pickBy @defaultOps, (op) => @::[op.action]?
+  @addOps: (specs, options) ->
+    @::ops = @makeOps @::ops, specs, options
+    @
+
+  @addDefaultOps: (options) ->
+   @addOps _.pickBy(@defaultOps, (op) => @::[op.action]?), options
 
   ops: {}
 
