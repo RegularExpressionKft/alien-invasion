@@ -360,8 +360,7 @@ class AlienModelBase extends AlienCommander
     context = 'response'
     Promise.resolve @opHook 'json', s, op, result, context
            .then (json) => @opHook 'accessFilter', s, op, json, context
-           .then (json) =>
-             Mci.jsonResponse op.responseStatus ? 200, json
+           .then (json) => Mci.jsonResponse op?.responseStatus ? 200, json
 
 # ==== Realtime ===============================================================
 
