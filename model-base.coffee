@@ -177,12 +177,13 @@ class AlienModelBase extends AlienCommander
 
   # @relations = {}
 
-  @_initRelation: (type, rel_name, model_name) ->
+  @_initRelation: (type, rel_name, model_name, options) ->
     @relations = {} unless @hasOwnProperty 'relations'
-    @relations[rel_name] =
-      name: rel_name
-      modelName: model_name
-      type: type
+    @relations[rel_name] = _.extend
+        name: rel_name
+        modelName: model_name
+        type: type
+      , options
     @
 
   @belongsTo: (rel_name, model_name) ->
@@ -190,6 +191,10 @@ class AlienModelBase extends AlienCommander
 
   @hasMany: (rel_name, model_name) ->
     @_initRelation 'hasMany', rel_name, model_name
+
+  @belongsToMany: (rel_name, model_name, join_table_name) ->
+    @_initRelation 'belongsToMany', rel_name, model_name,
+      joinTableName: join_table_name
 
 # ==== Hooks ==================================================================
 
