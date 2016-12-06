@@ -414,7 +414,7 @@ class AlienModelBase extends AlienCommander
       _.defaultsDeep spec, common for name, spec of specs_
     for name, spec of specs_
       spec.name = name unless spec.hasOwnProperty 'name' or parent_ops?[name]?
-    if (tweak = options?.tweak)?
+    if _.isFunction tweak = options?.tweak
       specs_ = tweak specs_, parent_ops, options, @
 
     Op = @Operation
