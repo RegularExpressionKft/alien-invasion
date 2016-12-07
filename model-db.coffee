@@ -57,7 +57,11 @@ class AlienDbModel extends AlienModelBase
   _getBookshelfRelations: ->
     bookshelf = @bookshelf
     _.mapValues @constructor.relations, (rel) ->
-      -> @[rel.type] bookshelf.model rel.modelName
+      ->
+        if rel.type is 'belongsToMany'
+          @[rel.type] bookshelf.model(rel.modelName), rel.joinTableName
+        else
+          @[rel.type] bookshelf.model(rel.modelName)
 
 # ---- Loaders ----------------------------------------------------------------
 
