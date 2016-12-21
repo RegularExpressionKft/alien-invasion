@@ -145,6 +145,15 @@ class AlienModelBase extends AlienCommander
       else
         throw error
 
+  errorUnauthorized: (s, op, fld, loc) ->
+    body = code: 'unauthorized'
+    if fld?
+      body.fld = if loc? then "#{loc}.#{fld}" else fld
+    Mci.promiseError
+      status: 401
+      type: 'json'
+      body: body
+
   errorBadValue: (s, op, fld, loc) ->
     Mci.promiseError
       status: 400
