@@ -169,28 +169,40 @@ class AlienController extends AlienCommander
 
     Promise.resolve response
 
+  # -- Generic helpers
+
+  promise: (s, what, model = @model s) ->
+    unless adapter = s.action.sAdapter s
+      throw new Error "Action #{s.action.name} doesn't support " +
+                      "transport #{s.request.transport}"
+
+    if _.isArray what
+      ps = {}
+      ps[i] = adapter.promise s, i, model for i in what
+      ps
+    else
+      adapter.promise s, what, model
+
   # -- Model interface
 
   model: (s) ->
-    (@app.module @master.config 'modelModule').model @modelName
+    if @modelName?
+      (@app.module @master.config 'modelModule').model @modelName
+    else
+      null
 
   # Returns trusted stuff
   promiseModelOptions: (s) -> Promise.resolve {}
 
   modelHandler: (s) ->
-    unless adapter = s.action.sAdapter s
-      throw new Error "Action #{s.action.name} doesn't support " +
-                      "transport #{s.request.transport}"
     model = @model s
     op = model.ops[s.action.name] ?
       throw new Error "Model #{model.name} doesn't support " +
                       "operation #{s.action.name}"
 
-    parameter_ps = {}
-    parameter_ps[i] = adapter.promise s, i, model for i of op.needs
-
-    (@promiseModelOptions s).then (options) ->
-      model.apiUnsafe s, s.action.name, options, parameter_ps
+    (@promiseModelOptions s).then (options) =>
+      model.apiUnsafe s, s.action.name, options,
+        @promise s, _.keys(op.needs), model
 
   # -- wrappers
 
