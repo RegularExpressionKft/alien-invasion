@@ -13,6 +13,61 @@ class AlienAction
     @adapters?[t_name] ? controller.adapters[t_name]
 
 class AlienController extends AlienCommander
+  @Action: AlienAction
+  @_action: (name, opt, defaultOptions) ->
+    action = new @Action
+    _.extend action,
+      if _.isString opt
+        route: opt
+      else if _.isFunction opt
+        route: name
+        handler: opt
+      else if _.isObject opt
+        opt
+      else
+        throw new Error "Bad action specification for #{name}"
+    action.name ?= name
+
+    # TODO move to express adapter
+    if (route = action.route)?
+      match = route.match /^(\w+)\s+(\S+)$/ if _.isString route
+      throw new Error "Bad route specification for action #{name}" unless match?
+      action.method = match[1]
+      action.path = match[2]
+    else if action.path?
+      action.method ?= 'any'
+    else
+      throw new Error "No route specification for action #{name}"
+
+    _.defaults action, defaultOptions
+
+  @addActions: (actions, defaultOptions) ->
+    @::actions ?= {}
+    for name, opt of actions
+      throw new Error "Duplicate action: #{name}" if @::actions[name]?
+      @::actions[name] = @_action name, opt, defaultOptions
+    @
+
+  @extend: (what, opts) -> @::[what] = _.defaults opts, @::[what]
+
+  # SomeController.addExtractors
+  #   some_param:
+  #     express: (s, what, model) -> null
+  #     websocket: (s, what, model) -> null
+  @addExtractors: (by_params) ->
+    by_adapters = {}
+    for param, adapters of by_params
+      for adapter, extractor of adapters
+        (by_adapters[adapter] ?= {})[param] = extractor
+
+    orig_adapters = @::adapters
+    new_adapters = _.mapValues by_adapters, (extractors, adapter) ->
+      o = orig_adapters[adapter]
+      _.defaults (extractors: o.extractors.derive extractors), o
+    @::adapters = _.defaults new_adapters, orig_adapters
+
+  # ==== Instance ====
+
   name: 'anonController'
 
   constructor: (@app, @master, @name) ->
@@ -209,40 +264,5 @@ class AlienController extends AlienCommander
   transactionWrapper: (s, next) ->
     (@app.module @master.config 'modelModule').transaction s,
       (s_) -> next s_
-
-AlienController._action = (name, opt, defaultOptions) ->
-  action = new @Action
-  _.extend action,
-    if _.isString opt
-      route: opt
-    else if _.isFunction opt
-      route: name
-      handler: opt
-    else if _.isObject opt
-      opt
-    else
-      throw new Error "Bad action specification for #{name}"
-  action.name ?= name
-
-  # TODO move to express adapter
-  if (route = action.route)?
-    match = route.match /^(\w+)\s+(\S+)$/ if _.isString route
-    throw new Error "Bad route specification for action #{name}" unless match?
-    action.method = match[1]
-    action.path = match[2]
-  else if action.path?
-    action.method ?= 'any'
-  else
-    throw new Error "No route specification for action #{name}"
-
-  _.defaults action, defaultOptions
-
-AlienController.Action = AlienAction
-AlienController.addActions = (actions, defaultOptions) ->
-  @::actions ?= {}
-  for name, opt of actions
-    throw new Error "Duplicate action: #{name}" if @::actions[name]?
-    @::actions[name] = @_action name, opt, defaultOptions
-  @
 
 module.exports = AlienController
