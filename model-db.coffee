@@ -215,6 +215,16 @@ class AlienDbModel extends AlienModelBase
                        .catch @make404 s, op,
                          @bookshelfModel.NoRowsDeletedError
 
+  promiseDeletedDbObjects: (s, op, p_filters, p_db_options) ->
+    p_filters ?= op.promise s, 'filters' if op?
+    p_db_options = @dbOptions s, op, 'delete', p_db_options
+    Promise.join p_filters, p_db_options,
+      (filters, db_options) =>
+        @bookshelfModel.query (qb) =>
+                         @_buildQuery s, op, 'delete', filters,
+                           db_options, qb
+                       .destroy db_options
+
 # ==== Hooks ==================================================================
 
   hooks: @::hooks.derive dbOptions: 'defaultDbOptions'
