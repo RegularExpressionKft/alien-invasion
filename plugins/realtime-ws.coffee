@@ -55,21 +55,11 @@ class AlienRealtimeWsClient extends AlienWs
       data: json
     null
 
-  _onWsOpen: ->
-    ret = super
-    @sendJSON id_packet if id_packet = @_assembleIdPacket()
-    ret
-
   _onWsClosed: ->
     ret = super
     @app.backplane.unregister @id
     @emit 'close', @
     ret
-
-  _assembleIdPacket: ->
-    type: 'server'
-    protocol: 'alienWs/0'
-    wsId: @id
 
   _checkChannels: (msg) ->
     error = if !_.isArray msg.channels or !msg.channels.every _.isString
@@ -97,7 +87,18 @@ class AlienRealtimeWs extends AlienPlugin
     null
 
   onServerConnection: (wsc, params, next) =>
-    @emit 'connect', @Client.fromAlienServer @, wsc, params, next
+    client = @Client.fromAlienServer @, wsc, params, next
+    @emit 'connect', client
+    @sendIdPacket client
     null
+
+  sendIdPacket: (client) ->
+    id_packet =
+      type: 'server'
+      protocol: 'alienWs/0'
+      wsId: client.id
+    @emit 'assemble_id_packet', id_packet, client
+    client.sendJSON id_packet unless _.isEmpty id_packet
+    @
 
 module.exports = AlienRealtimeWs
