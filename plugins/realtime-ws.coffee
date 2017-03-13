@@ -10,8 +10,10 @@ AlienPlugin = require '../plugin'
 class AlienRealtimeWsClient extends AlienWs
   constructor: ->
     ret = super
+    @active = true
     @app.backplane.register @id, @_onBpEvent
                   .subscribe @id, "RealtimeWs:#{@id}"
+    @on e, @_deactivate for e in [ 'wsClosing', 'wsClosed' ]
     return ret
 
   messageTypes: @::messageTypes.derive
@@ -34,6 +36,13 @@ class AlienRealtimeWsClient extends AlienWs
       channels: unsubscribed
     unsubscribed
 
+  _deactivate: ->
+    if @active
+      @active = false
+      @app.backplane.unregister @id
+      @emit 'close', @
+    null
+
   _onBpEvent: (channel, json) =>
     @debug "BpEvent: #{channel}", json
     # TODO websocket authentication
@@ -54,12 +63,6 @@ class AlienRealtimeWsClient extends AlienWs
       channel: channel
       data: json
     null
-
-  _onWsClosed: ->
-    ret = super
-    @app.backplane.unregister @id
-    @emit 'close', @
-    ret
 
   _checkChannels: (msg) ->
     error = if !_.isArray msg.channels or !msg.channels.every _.isString

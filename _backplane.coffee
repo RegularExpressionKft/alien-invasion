@@ -77,7 +77,11 @@ class AlienBackplane
     _.keys endpoint.channels
 
   publish: (channel_id, args...) ->
-    endpoint.cb arguments... for endpoint_id, endpoint of @channels[channel_id]
-    @
+    for endpoint_id, endpoint of @channels[channel_id]
+      try
+        endpoint.cb arguments...
+      catch error
+        @app.error "Backplane #{endpoint_id} exception:", error
+    null
 
 module.exports = AlienBackplane
