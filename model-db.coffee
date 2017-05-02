@@ -206,22 +206,23 @@ class AlienDbModel extends AlienModelBase
 
   promiseDeletedDbObject: (s, op, p_id, p_db_options) ->
     p_id ?= op.promise s, 'id' if op?
-    p_db_options = @dbOptions s, op, 'delete', p_db_options
+    p_db_options = @dbOptions s, op, 'delete-one', p_db_options
     Promise.join p_id, p_db_options,
       (id, db_options) =>
         # s.debug "#{@name}.promiseDeletedDbObject", id
-        @bookshelfModel.where id
+        @bookshelfModel.query (qb) =>
+                         @_buildQuery s, op, 'delete-one', id, db_options, qb
                        .destroy _.extend require: true, db_options
                        .catch @make404 s, op,
                          @bookshelfModel.NoRowsDeletedError
 
   promiseDeletedDbObjects: (s, op, p_filters, p_db_options) ->
     p_filters ?= op.promise s, 'filters' if op?
-    p_db_options = @dbOptions s, op, 'delete', p_db_options
+    p_db_options = @dbOptions s, op, 'delete-many', p_db_options
     Promise.join p_filters, p_db_options,
       (filters, db_options) =>
         @bookshelfModel.query (qb) =>
-                         @_buildQuery s, op, 'delete', filters,
+                         @_buildQuery s, op, 'delete-many', filters,
                            db_options, qb
                        .destroy db_options
 
