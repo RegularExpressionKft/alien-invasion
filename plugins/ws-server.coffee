@@ -1,6 +1,9 @@
+Promise = require 'bluebird'
 WebSocket = require 'ws'
 pathToRegexp = require 'path-to-regexp'
+pu = require 'alien-utils/promise'
 uuid = require 'uuid'
+url = require 'url'
 _ = require 'lodash'
 
 AlienPlugin = require '../plugin'
@@ -10,14 +13,13 @@ class AlienWsRouter
     @routeSeq = 0
     @routes = []
 
-  newRoute: (path, handler, options) ->
+  newRoute: (path, options) ->
     route = _.extend
         sensitive: true
         strict: true
         end: true
         hits: 0
       , options
-    route.handler = handler if handler?
     route.id = ++@routeSeq
     route.path = path
     route.re =  pathToRegexp path,
@@ -26,7 +28,15 @@ class AlienWsRouter
     @routes.push route
     route
 
-  checkPath: (path) -> _.find @routes, (r) -> path.search(r.re) >= 0
+  checkPath: (path, info) ->
+    pu.promiseFirst @routes, (r) ->
+      if r.re.test path
+        if _.isFunction r.check
+          r.check path, info
+        else
+          true
+      else
+        null
 
   # TODO Route parameters are only partially implemented:
   #      Missing: repeat, optional, unnamed (more?)
@@ -58,15 +68,19 @@ class AlienWsServer extends AlienPlugin
     @wss = new WebSocket.Server
       server: express_module.server
       verifyClient: @_verifyClient.bind @
-    @wss.on 'connection', @onServerConnection.bind @
-    @wss.on 'error', @onServerError.bind @
+    @wss.on 'connection', @onServerConnection
+    @wss.on 'error', @onServerError
     null
 
-  addRoute: (path, handler, options) ->
+  addRoute: (path, options) ->
     @router ?= new @Router @
-    route = @router.newRoute path, handler, options
+    options = handler: options if _.isFunction options
+    route = @router.newRoute path, options
     route.id
 
+  # Fatarrow changes function.length as of 1.12.4
+  # https://github.com/jashkenas/coffeescript/issues/2489
+  # _verifyClient: (info, cb) =>
   _verifyClient: (info, cb) ->
     req = info.req
     req.alienStartDate ?= new Date()
@@ -75,13 +89,37 @@ class AlienWsServer extends AlienPlugin
     l.info "@@@@ BEGIN #{l.id} @@@@",
       _.pick req, 'method', 'url', 'headers', 'ip'
 
-    if @router? and @router.checkPath req.url
-      cb true
+    if @router?
+      req.alienUrl =
+        new url.URL req.url, "ws://#{req.headers.host ? 'localhost'}/"
+
+      @router.checkPath req.alienUrl.pathname, info
+             .then (res) ->
+               if res?
+                 l.debug 'checkPath',
+                   res: res
+                   type: typeof res
+                   obj: _.isObject res
+                   bool: !!res
+                 if _.isObject res
+                   unless res.accept
+                     l.info "@@@@ END #{res.code} #{res.string} @@@@"
+                   cb res.accept, res.code, res.string
+                 else
+                   l.info '@@@@ END denied @@@@' unless res
+                   cb res
+               else
+                 l.info '@@@@ END no handler @@@@'
+                 cb false, 404, 'Not Found'
+             .catch (error) ->
+               l.error 'checkPath', error
+               l.info '@@@@ END exception @@@@'
+               cb false, 500, 'Internal Server Error'
     else
-      l.info '@@@@ END http404 @@@@'
+      l.info '@@@@ END no router @@@@'
       cb false, 404, 'Not Found'
 
-  onServerConnection: (ws) ->
+  onServerConnection: (ws) =>
     req = ws.upgradeReq
     logger = req.alienLogger
     logger.debug 'Upgraded.'
@@ -92,17 +130,16 @@ class AlienWsServer extends AlienPlugin
         msg: msg
       null
 
-    path = req.url
     if @router?
-      @router.dispatch path, ws, @onRouterDefault.bind @
+      @router.dispatch req.alienUrl.pathname, ws, @onRouterDefault
     else
-      @onRouterDefault path, ws
+      @onRouterDefault req.alienUrl.pathname, ws
 
-  onServerError: (e) ->
+  onServerError: (e) =>
     @warn e
     null
 
-  onRouterDefault: (path, ws) ->
+  onRouterDefault: (path, ws) =>
     ws.upgradeReq.alienLogger.error "Router defaulted on #{path}"
     ws.close()
     null
