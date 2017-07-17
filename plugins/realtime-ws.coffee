@@ -86,8 +86,15 @@ class AlienRealtimeWs extends AlienPlugin
   wsModule: -> @app.module @config 'wsModule'
 
   _init: ->
-    @wsModule().addRoute (@config 'uri'), @onServerConnection
+    @wsModule().addRoute (@config 'uri'),
+      handler: @onServerConnection
+      check: @_checkConnection
     null
+
+  _checkConnection: => @checkConnection arguments...
+
+  checkConnection: (path, info) ->
+    true
 
   onServerConnection: (wsc, params, next) =>
     client = @Client.fromAlienServer @, wsc, params, next
