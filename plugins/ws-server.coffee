@@ -21,39 +21,49 @@ class AlienWsRouter
         hits: 0
       , options
     route.id = ++@routeSeq
-    route.path = path
-    route.re =  pathToRegexp path,
-      route.keys = [],
-      _.pick route, ['end', 'strict', 'sensitive']
+    if path?
+      route.path = path
+      route.re =  pathToRegexp path,
+        route.keys = [],
+        _.pick route, ['end', 'strict', 'sensitive']
     @routes.push route
     route
 
-  checkPath: (path, info) ->
+  findRoute: (info) ->
+    route = null
+    path = info.req.alienUrl.pathname
     pu.promiseFirst @routes, (r) ->
-      if r.re.test path
-        if _.isFunction r.check
-          r.check path, info
+        route = r
+        if !r.re? or r.re.test path
+          if _.isFunction r.check
+            r.check path, info
+          else
+            true
         else
-          true
-      else
-        null
+          null
+      .then (res) ->
+        if res?
+          if _.isObject res
+            _.defaults route: route, res
+          else
+            accept: res
+            route: route
+        else
+          null
 
   # TODO Route parameters are only partially implemented:
   #      Missing: repeat, optional, unnamed (more?)
-  dispatch: (path, ws, unhandler) ->
-    routes = @routes.slice()
-    next = ->
-      while routes.length > 0
-        route = routes.shift()
-        if (match = path.match route.re)?
-          params = {}
-          params[k.name] = match[i + 1] for k, i in route.keys
-          ws.upgradeReq.alienLogger.debug \
-            "Matching route [#{route.id}]: #{route.path}",
-            params
-          return route.handler ws, params, next
-      unhandler path, ws
-    next()
+  dispatch: (route, ws) ->
+    params = {}
+    req = ws.upgradeReq
+    if route.re? and (path = req.alienUrl?.pathname)? and
+       (match = path.match route.re)?
+      params[k.name] = match[i + 1] for k, i in route.keys
+    req.alienLogger.debug \
+      "Matching route [#{route.id}]: #{route.path ? '<generic>'}",
+      params
+    route.handler ws, params
+
 
 # TODO cookieparser
 # TODO merge connection id / logging with Express
@@ -93,21 +103,23 @@ class AlienWsServer extends AlienPlugin
       req.alienUrl =
         new url.URL req.url, "ws://#{req.headers.host ? 'localhost'}/"
 
-      @router.checkPath req.alienUrl.pathname, info
+      @router.findRoute info
              .then (res) ->
                if res?
-                 l.debug 'checkPath',
-                   res: res
-                   type: typeof res
-                   obj: _.isObject res
-                   bool: !!res
-                 if _.isObject res
-                   unless res.accept
-                     l.info "@@@@ END #{res.code} #{res.string} @@@@"
-                   cb res.accept, res.code, res.string
+                 if res.accept
+                   req.alienWsRoute = res.route
                  else
-                   l.info '@@@@ END denied @@@@' unless res
-                   cb res
+                   reason = if res.code?
+                       if res.string?
+                         "#{res.code} #{res.string}"
+                       else
+                         res.code
+                     else if res.string?
+                       "<default> #{res.string}"
+                     else
+                       'denied'
+                   l.info "@@@@ END #{reason} @@@@"
+                 cb res.accept, res.code, res.string
                else
                  l.info '@@@@ END no handler @@@@'
                  cb false, 404, 'Not Found'
@@ -130,8 +142,8 @@ class AlienWsServer extends AlienPlugin
         msg: msg
       null
 
-    if @router?
-      @router.dispatch req.alienUrl.pathname, ws, @onRouterDefault
+    if @router? and req.alienWsRoute?
+      @router.dispatch req.alienWsRoute, ws
     else
       @onRouterDefault req.alienUrl.pathname, ws
 
