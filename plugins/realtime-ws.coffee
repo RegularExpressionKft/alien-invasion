@@ -96,8 +96,8 @@ class AlienRealtimeWs extends AlienPlugin
   checkConnection: (path, info) ->
     true
 
-  onServerConnection: (wsc, params, next) =>
-    client = @Client.fromAlienServer @, wsc, params, next
+  onServerConnection: (wsc, params) =>
+    client = @Client.fromAlienServer @, wsc, params
     @emit 'connect', client
     @sendIdPacket client
     null
