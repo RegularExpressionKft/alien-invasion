@@ -114,7 +114,7 @@ class AlienTestUtils
       matching = @filterSuperObj (@extractResult res), expected
       assert.equal matching.length, 0, "Has superobjects"
 
-  createWs: (p) ->
+  promiseWs: Promise.method (p) ->
     p = _.extend
         WebSocket: AlienWsClient
         url: @realtimeUrl
@@ -128,20 +128,16 @@ class AlienTestUtils
     ws
 
   wsPromise: (p, cb) ->
-    ws = null
     # wsPromise cb
     if !cb? and _.isFunction p
       cb = p
       p = null
-    try
-      ws = @createWs p
+    @promiseWs p
+    .then (ws) ->
       new Promise (resolve, reject) -> cb ws, resolve, reject
       .finally ->
         ws?.terminate()
         ws = null
-    catch error
-      ws?.terminate()
-      Promise.reject error
 
   simpleActionEvent: (p, cb) ->
     if !cb? and _.isFunction p
