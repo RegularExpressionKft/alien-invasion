@@ -44,7 +44,9 @@ class AlienRealtimeWsClient extends AlienWs
     null
 
   _onBpEvent: (channel, json) =>
-    @debug "BpEvent: #{channel}", json
+    @sendEvent channel, json
+
+  sendEvent: (channel, json) ->
     # TODO websocket authentication
     # if json.model? and (model = @app.plugin('models').model json.model)?
     #   model.opHook 'accessFilter', TODO.s, TODO.op, json, 'event'
