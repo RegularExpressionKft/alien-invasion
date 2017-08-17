@@ -33,7 +33,17 @@ run_before_after = (obj) ->
   obj
 
 class AlienTestUtils
-  @initialize: -> run_before_after @
+  @initialize: ->
+    self = @
+    beforeEach -> self.beforeEach @
+    afterEach -> self.afterEach @
+    run_before_after @
+
+  @beforeEach: (test) ->
+    @app?.info "**** BEGIN [#{test.currentTest.fullTitle()}]"
+
+  @afterEach: (test) ->
+    @app?.info "**** END [#{test.currentTest.fullTitle()}]"
 
   constructor: ->
     @constructor.initialize()
@@ -60,11 +70,16 @@ class AlienTestUtils
     realtimeUrl: "#{ws}/realtime"
     webrtcUrl: "#{b}/janus"
 
+  @prepare: (app, test) -> null
+
   @before: (test) ->
-    @app = @makeApp test
-    _.defaults @::, @_prepareVars test
-    @startApp @app, test
-    null
+    Promise.resolve @makeApp test
+           .then (app) =>
+             @app = app
+             _.defaults @::, @_prepareVars test
+             @prepare @app, test
+           .then =>
+             @startApp @app, test
 
   @after: ->
     @app.stop()

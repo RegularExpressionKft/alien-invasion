@@ -1,3 +1,4 @@
+Promise = require 'bluebird'
 Http = require 'http'
 express = require 'express'
 cookie_parser = require 'cookie-parser'
@@ -57,15 +58,34 @@ class AlienExpress extends AlienPlugin
     null
 
   start: ->
-    unless @started
-      port = @config 'port'
-      @debug "Starting on port #{port}"
-      @server.listen port
-      @started = true
+    if @started
+      Promise.resolve @port
+    else
+      # TODO reentry protection
+      new Promise (resolve, reject) =>
+        @port = @config 'port'
+        @debug "Starting on port #{@port}"
+        @server.listen @port, (error) =>
+          if error?
+            @error error
+            @port = null
+            reject error
+          else
+            @started = true
+            resolve @port
   stop: ->
     if @started
-      @server.close()
-      @started = false
+      new Promise (resolve, reject) =>
+        @server.close (error) =>
+          if error?
+            @error error
+            reject error
+          else
+            @started = false
+            @port = null
+            resolve null
+    else
+      Promise.resolve null
 
   handle404: (req, res, next) ->
     next()
