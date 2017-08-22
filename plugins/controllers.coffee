@@ -25,6 +25,8 @@ class AlienControllerLoader extends AlienPlugin
         ctrl
     null
 
+  controller: (controller_name) -> @controllers[controller_name]
+
   transportModules: ->
     @app.module m for m in @config 'transportModules'
 
