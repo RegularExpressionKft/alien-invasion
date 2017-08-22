@@ -16,27 +16,21 @@ map_to_object = (list, fn) ->
   ret
 
 run_before_after = (obj) ->
-  if obj.before?
-    before ->
-      obj.state ?= {}
-      unless obj.state.beforeRun
-        obj.state.beforeRun = true
-        obj.state.beforeValue = obj.before @, arguments...
-      obj.state.beforeValue
-  if obj.after?
-    after ->
-      obj.state ?= {}
-      unless obj.state.afterRun
-        obj.state.afterRun = true
-        obj.state.afterValue = obj.after @, arguments...
-      obj.state.afterValue
+  hooks =
+    before: before
+    beforeEach: beforeEach
+    after: after
+    afterEach: afterEach
+  _.forEach hooks, (f, n) ->
+    k_installed = "#{n}Installed"
+    if obj[n]? and !obj.state?[k_installed]
+      (obj.state ?= {})[k_installed] = true
+      f -> obj[n] @, arguments...
   obj
 
 class AlienTestUtils
   @initialize: ->
     self = @
-    beforeEach -> self.beforeEach @
-    afterEach -> self.afterEach @
     run_before_after @
 
   @beforeEach: (test) ->
