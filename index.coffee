@@ -3,6 +3,7 @@ _ = require 'lodash'
 
 AlienConfig = require 'alien-utils/config'
 AlienLogger = require 'alien-utils/logger'
+PluginUtils = require 'alien-utils/plugin-utils'
 
 AlienBackplane = require './_backplane'
 AlienStash = require './_stash'
@@ -122,17 +123,23 @@ class AlienInvasion extends EventEmitter
     @module.apply @, arguments
     @
 
+  # ==== Patch
+
+  patch: PluginUtils::patch
+  _pluggableAction: PluginUtils::pluggableAction
+
   # ==== Events
 
-  start: (args...) ->
-    ret = {}
-    @emit 'start', ret, args...
-    @started = true
-    ret
-  stop: (args...) ->
-    ret = {}
-    @emit 'stop', ret, args...
-    @started = false
-    ret
+  # _action: (action, args...) ->
+  _action: (action) ->
+    @debug "action #{action} begin", _.keys @_patches?[action]
+    @_pluggableAction arguments...
+    .tap (result) =>
+      @emit action, result
+      @debug "action #{action} end", result
+
+  start: (args...) -> @_action 'start', args...
+  stop: (args...) -> @_action 'stop', args...
+  reset: (args...) -> @_action 'reset', args...
 
 module.exports = AlienInvasion

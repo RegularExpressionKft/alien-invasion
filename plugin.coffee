@@ -10,9 +10,9 @@ class AlienPlugin extends AlienCommander
 
     @_init()
 
-    ['start', 'stop'].forEach (event) =>
+    [ 'start', 'stop', 'reset' ].forEach (event) =>
       if _.isFunction @[event]
-        @app.on event, => @[event].apply @, arguments
+        @app.patch event, @moduleName, @[event].bind @
       null
 
     @

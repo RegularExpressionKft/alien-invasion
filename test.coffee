@@ -16,24 +16,28 @@ map_to_object = (list, fn) ->
   ret
 
 run_before_after = (obj) ->
-  if obj.before?
-    before ->
-      obj.state ?= {}
-      unless obj.state.beforeRun
-        obj.state.beforeRun = true
-        obj.state.beforeValue = obj.before @, arguments...
-      obj.state.beforeValue
-  if obj.after?
-    after ->
-      obj.state ?= {}
-      unless obj.state.afterRun
-        obj.state.afterRun = true
-        obj.state.afterValue = obj.after @, arguments...
-      obj.state.afterValue
+  hooks =
+    before: before
+    beforeEach: beforeEach
+    after: after
+    afterEach: afterEach
+  _.forEach hooks, (f, n) ->
+    k_installed = "#{n}Installed"
+    if obj[n]? and !obj.state?[k_installed]
+      (obj.state ?= {})[k_installed] = true
+      f -> obj[n] @, arguments...
   obj
 
 class AlienTestUtils
-  @initialize: -> run_before_after @
+  @initialize: ->
+    self = @
+    run_before_after @
+
+  @beforeEach: (test) ->
+    @app?.info "**** BEGIN [#{test.currentTest.fullTitle()}]"
+
+  @afterEach: (test) ->
+    @app?.info "**** END [#{test.currentTest.fullTitle()}]"
 
   constructor: ->
     @constructor.initialize()
@@ -60,11 +64,16 @@ class AlienTestUtils
     realtimeUrl: "#{ws}/realtime"
     webrtcUrl: "#{b}/janus"
 
+  @prepare: (app, test) -> null
+
   @before: (test) ->
-    @app = @makeApp test
-    _.defaults @::, @_prepareVars test
-    @startApp @app, test
-    null
+    Promise.resolve @makeApp test
+           .then (app) =>
+             @app = app
+             _.defaults @::, @_prepareVars test
+             @prepare @app, test
+           .then =>
+             @startApp @app, test
 
   @after: ->
     @app.stop()
