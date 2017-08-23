@@ -36,7 +36,7 @@ class AlienDbModel extends AlienModelBase
     db_options = {}
     db_options.transacting = s.transaction if s.transaction?
     if (wr = op?.options.withRelated)? and
-       (!db_op? or db_op.match /^select/)
+       (!db_op? or db_op.match /select|refresh/)
       db_options.withRelated = wr
     Promise.resolve db_options
 
