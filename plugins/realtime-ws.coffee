@@ -11,8 +11,9 @@ class AlienRealtimeWsClient extends AlienWs
   constructor: ->
     ret = super
     @active = true
-    @app.backplane.register @id, @_onBpEvent
-                  .subscribe @id, "RealtimeWs:#{@id}"
+    @_bpId = "RealtimeWs:#{@id}"
+    @app.backplane.register @_bpId, @_onBpEvent
+                  .subscribe @_bpId, @_bpId
     @on e, @_deactivate for e in [ 'wsClosing', 'wsClosed' ]
     return ret
 
@@ -21,7 +22,7 @@ class AlienRealtimeWsClient extends AlienWs
     unsubscribe: (msg) -> @unsubscribe @_checkChannels msg
 
   subscribe: (channels) ->
-    subscribed = @app.backplane.subscribe @id, channels
+    subscribed = @app.backplane.subscribe @_bpId, channels
     @debug 'subscribed', subscribed
     @sendJSON
       type: 'subscribed'
@@ -29,7 +30,7 @@ class AlienRealtimeWsClient extends AlienWs
     subscribed
 
   unsubscribe: (channels) ->
-    unsubscribed = @app.backplane.unsubscribe @id, channels
+    unsubscribed = @app.backplane.unsubscribe @_bpId, channels
     @debug 'unsubscribed', unsubscribed
     @sendJSON
       type: 'unsubscribed'
@@ -39,31 +40,32 @@ class AlienRealtimeWsClient extends AlienWs
   _deactivate: ->
     if @active
       @active = false
-      @app.backplane.unregister @id
+      @app.backplane.unregister @_bpId
       @emit 'close', @
     null
 
-  _onBpEvent: (channel, json) =>
-    @sendEvent channel, json
+  _onBpEvent: (channel, msg) =>
+    @sendEvent channel, msg
 
-  sendEvent: (channel, json) ->
+  sendEvent: (channel, msg) ->
     # TODO websocket authentication
-    # if json.model? and (model = @app.plugin('models').model json.model)?
-    #   model.opHook 'accessFilter', TODO.s, TODO.op, json, 'event'
-    #        .then (json) =>
-    #          @sendJSON
-    #            type: 'event'
-    #            channel: channel
-    #            data: json
+    # if msg.model? and (model = @app.plugin('models').model msg.model)?
+    #   model.opHook 'accessFilter', TODO.s, TODO.op, msg, 'event'
+    #        .then (filtered_msg) =>
+    #          if filtered_msg?
+    #            @sendJSON
+    #              type: 'event'
+    #              channel: channel
+    #              data: filtered_msg
     # else
     #   @sendJSON
     #     type: 'event'
     #     channel: channel
-    #     data: json
+    #     data: msg
     @sendJSON
       type: 'event'
       channel: channel
-      data: json
+      data: msg
     null
 
   _checkChannels: (msg) ->
