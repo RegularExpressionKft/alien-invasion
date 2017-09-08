@@ -152,7 +152,12 @@ class AlienController extends AlienCommander
                     .then (r) =>
                       r.result ?= 'success'
                       s.debug 'Response:',
-                        _.pick r, 'result', 'status', 'headers', 'body'
+                        if r.type is 'redirect'
+                          result: r.result
+                          status: 'redirect',
+                          location: r.location
+                        else
+                          _.pick r, 'result', 'status', 'headers', 'body'
                       s.emit 'response', r
                       # r.result can be 'error'
                       s.emit r.result, r if s.listenerCount(r.result) > 0

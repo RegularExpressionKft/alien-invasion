@@ -33,6 +33,11 @@ class Mci
   @Response: MciResponse
   @response: (options) -> @Response.create options
 
+  @redirect: (location) ->
+   new @Response
+     type: 'redirect'
+     location: location
+
   @jsonResponse = (status, body, headers) ->
     r = type: 'json'
     r.status = status if status?
