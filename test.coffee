@@ -1,4 +1,5 @@
 Promise = require 'bluebird'
+CookieJar = require('cookiejar').CookieJar
 methods = require 'methods'
 assert = require 'assert'
 _ = require 'lodash'
@@ -95,6 +96,12 @@ class AlienTestUtils
     @agent = request
     map_to_object methods, (m) => @_request.bind @, m
   _request: (method, args...) -> @agent[method] args...
+
+  clearCookies: (from) ->
+    from ?= [ @testAgent, @agent ]
+    from = [ from ] unless _.isArray from
+    agent?.jar = new CookieJar for agent in from
+    @
 
   extractResult: (res) -> res.body
 
