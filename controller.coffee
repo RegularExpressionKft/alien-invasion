@@ -156,8 +156,12 @@ class AlienController extends AlienCommander
                           result: r.result
                           status: 'redirect',
                           location: r.location
+                        else if r.type is 'json'
+                          _.pick r,
+                            [ 'result', 'status', 'headers', 'body' ]
                         else
-                          _.pick r, 'result', 'status', 'headers', 'body'
+                          _.pick r,
+                            [ 'result', 'type', 'status', 'headers', 'body' ]
                       s.emit 'response', r
                       # r.result can be 'error'
                       s.emit r.result, r if s.listenerCount(r.result) > 0

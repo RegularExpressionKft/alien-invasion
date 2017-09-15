@@ -139,6 +139,7 @@ class AlienExpress extends AlienPlugin
       else if !response.body? or
               (_.isString response.body) or
               (response.body instanceof Buffer)
+        res.contentType 'text/plain' if response.type is 'text'
         res.send response.body
       else
         res.json response.body
