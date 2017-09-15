@@ -97,8 +97,7 @@ class AlienTestUtils
     map_to_object methods, (m) => @_request.bind @, m
   _request: (method, args...) -> @agent[method] args...
 
-  clearCookies: (from) ->
-    from ?= [ @testAgent, @agent ]
+  clearCookies: (from = [ @testAgent, @agent ]) ->
     from = [ from ] unless _.isArray from
     agent?.jar = new CookieJar for agent in from
     @
