@@ -134,15 +134,19 @@ class AlienExpress extends AlienPlugin
       res = s.request.express.res
       res.set k, v for k, v of response.headers
       res.status response.status if response.status?
-      if response.type is 'redirect'
-        res.redirect response.location
-      else if !response.body? or
-              (_.isString response.body) or
-              (response.body instanceof Buffer)
-        res.contentType 'text/plain' if response.type is 'text'
-        res.send response.body
-      else
-        res.json response.body
+      switch response.type
+        when 'redirect'
+          res.redirect response.location
+        when 'stream'
+          response.body.pipe res
+        else
+          if !response.body? or
+               (_.isString response.body) or
+               (response.body instanceof Buffer)
+            res.contentType 'text/plain' if response.type is 'text'
+            res.send response.body
+          else
+            res.json response.body
       s.request.responseSent = true
     response
 

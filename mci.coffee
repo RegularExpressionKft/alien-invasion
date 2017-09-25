@@ -15,7 +15,7 @@ class MciResponse
   # headers: HTTP response headers
   # body: HTTP response body
   # result: success | error | exception
-  # type: json | ...
+  # type: redirect | stream | json | text | html
   # sent: response sent
   # cloned: object is safe to modify (default true)
 
@@ -29,14 +29,56 @@ class MciResponse
     else
       @clone()
 
+  dump: ->
+    switch @type
+      when 'redirect'
+        result: @result
+        status: 'redirect',
+        location: @location
+      when 'stream'
+        _.pick @, [ 'result', 'type', 'status', 'headers' ]
+      when 'json'
+        _.pick @, [ 'result', 'status', 'headers', 'body' ]
+      else
+        _.pick @, [ 'result', 'type', 'status', 'headers', 'body' ]
+
 class Mci
   @Response: MciResponse
   @response: (options) -> @Response.create options
 
   @redirect: (location) ->
-   new @Response
-     type: 'redirect'
-     location: location
+    @response
+      type: 'redirect'
+      location: location
+
+  @stream: (stream, content_type, size) ->
+    response =
+      status: 200
+      type: 'stream'
+      headers:
+        'content-type':
+          content_type ? 'application/octet-stream; charset=binary'
+      body: stream
+    response.headers['content-length'] = size if size?
+    @response response
+
+  @json: (json) ->
+    @response
+      status: 200
+      type: 'json'
+      body: json
+
+  @text: (text) ->
+    @response
+      status: 200
+      type: 'text'
+      body: text
+
+  @html: (html) ->
+    @response
+      status: 200
+      type: 'html'
+      body: html
 
   @jsonResponse = (status, body, headers) ->
     r = type: 'json'
