@@ -47,6 +47,20 @@ class AlienTestUtils
 
   # ---- mocha generic parts above / alien specific parts below ----
 
+  @beforeApp: (cb) ->
+    (@_before_app ?= []).push cb
+    @
+
+  @_runBeforeApp: (args...) ->
+    try
+      if @_before_app?
+        Promise.all @_before_app.map (i) => i.apply @, args
+               .return null
+      else
+        Promise.resolve()
+    catch error
+      Promise.reject error
+
   # TODO make this more extensible, configurable
   @makeApp: (test) ->
     test.timeout 10000
@@ -68,13 +82,14 @@ class AlienTestUtils
   @prepare: (app, test) -> null
 
   @before: (test) ->
-    Promise.resolve @makeApp test
-           .then (app) =>
-             @app = app
-             _.defaults @::, @_prepareVars test
-             @prepare @app, test
-           .then =>
-             @startApp @app, test
+    @_runBeforeApp()
+    .then => @makeApp test
+    .then (app) =>
+      @app = app
+      _.defaults @::, @_prepareVars test
+      @prepare @app, test
+    .then =>
+      @startApp @app, test
 
   @after: ->
     @app.stop()
