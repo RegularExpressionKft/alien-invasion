@@ -136,39 +136,42 @@ class AlienModelBase extends AlienCommander
 
 # ==== Errors =================================================================
 
-  error404: (s, op) -> Mci.promiseError status: 404
+  localizeError: (s, op, fld, loc, error) ->
+    f = if loc? then "#{loc}.#{fld}" else fld
+    error?.body?.fld = f if f?
+    error
 
-  make404: (s, op, exception) ->
-    (error) =>
-      if error instanceof exception
-        @error404 s, op
-      else
-        throw error
+  e404: (s, op, fld, loc) ->
+    @localizeError s, op, fld, loc,
+      status: 404
+      type: 'json'
+      body:
+        code: 'not_found'
+  error404: (s, op, fld, loc) -> Mci.promiseError @e404 s, op, fld, loc
 
-  errorUnauthorized: (s, op, fld, loc) ->
-    body = code: 'unauthorized'
-    if fld?
-      body.fld = if loc? then "#{loc}.#{fld}" else fld
-    Mci.promiseError
+  eUnauthorized: (s, op, fld, loc) ->
+    @localizeError s, op, fld, loc,
       status: 401
       type: 'json'
-      body: body
+      body:
+        code: 'unauthorized'
+  errorUnauthorized: (s, op, fld, loc) -> Mci.promiseError @eUnauthorized s, op, fld, loc
 
-  errorBadValue: (s, op, fld, loc) ->
-    Mci.promiseError
+  eBadValue: (s, op, fld, loc) ->
+    @localizeError s, op, fld, loc,
       status: 400
       type: 'json'
       body:
         code: 'bad_value'
-        fld: if loc? then "#{loc}.#{fld}" else fld
+  errorBadValue: (s, op, fld, loc) -> Mci.promiseError @eBadValue s, op, fld, loc
 
-  errorMissingParam: (s, op, fld, loc) ->
-    Mci.promiseError
+  eMissingParam: (s, op, fld, loc) ->
+    @localizeError s, op, fld, loc,
       status: 400
       type: 'json'
       body:
         code: 'missing_param'
-        fld: if loc? then "#{loc}.#{fld}" else fld
+  errorMissingParam: (s, op, fld, loc) -> Mci.promiseError @eMissingParam s, op, fld, loc
 
 # ==== Composite Id ===========================================================
 

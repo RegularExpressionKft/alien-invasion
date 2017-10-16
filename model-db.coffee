@@ -65,6 +65,13 @@ class AlienDbModel extends AlienModelBase
 
 # ---- Loaders ----------------------------------------------------------------
 
+  _make404: (s, op, exception) ->
+    (error) =>
+      if error instanceof exception
+        @error404 s, op
+      else
+        throw error
+
   _buildQuery: (s, op, db_op, filters, db_options, qb) ->
     if _.isObject filters
       for name, value of filters
@@ -165,7 +172,7 @@ class AlienDbModel extends AlienModelBase
                   Promise.resolve db_object
               else
                 db_object.save null, db_options_
-            p.catch @make404 s, op, @bookshelfModel.NoRowsUpdatedError
+            p.catch @_make404 s, op, @bookshelfModel.NoRowsUpdatedError
 
   _directUpdateDbObject: (s, op, p_id, p_properties, p_db_options) ->
     db_op = 'update-direct'
@@ -182,7 +189,7 @@ class AlienDbModel extends AlienModelBase
                                patch: true
                                require: true
                              , db_options
-                           .catch @make404 s, op,
+                           .catch @_make404 s, op,
                              @bookshelfModel.NoRowsUpdatedError
 
   _loadUpdateDbObject: (s, op, p_id, p_properties, p_db_options) ->
@@ -213,7 +220,7 @@ class AlienDbModel extends AlienModelBase
         @bookshelfModel.query (qb) =>
                          @_buildQuery s, op, 'delete-one', id, db_options, qb
                        .destroy _.extend require: true, db_options
-                       .catch @make404 s, op,
+                       .catch @_make404 s, op,
                          @bookshelfModel.NoRowsDeletedError
 
   promiseDeletedDbObjects: (s, op, p_filters, p_db_options) ->
