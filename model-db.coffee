@@ -239,6 +239,25 @@ class AlienDbModel extends AlienModelBase
 
 # ==== Responses ==============================================================
 
+  _mapRelationships: (json, fn) ->
+    rels = @constructor.relations
+    rel_keys = _.keys rels
+    map_obj = (obj) ->
+      if _.isObject(obj) and
+         (rel_keys = rel_keys.filter (k) -> _.has obj, k).length > 0
+        obj_ = _.omit obj, rel_keys
+        for k in rel_keys
+          v = fn k, rels[k], obj[k], obj
+          obj_[k] = v if v?
+        Promise.props obj_
+      else
+        Promise.resolve obj
+
+    if _.isArray json
+      Promise.map json, map_obj
+    else
+      map_obj json
+
   # bookshelf.relations is undocumented / private
   defaultJsonObject: (s, op, result, context) ->
     if result?.toJSON?
@@ -252,10 +271,11 @@ class AlienDbModel extends AlienModelBase
       if _.keys(res_rels).some((r) -> my_rels[r]?)
         ret_rel_ps = {}
         ret = result.toJSON _.extend shallow: true, opts
+        foreign_context = "#{@name}.#{context}"
         for n, v of res_rels
           ret_rel_ps[n] = if my_rels[n]?
             rel_model = @master.model my_rels[n].modelName
-            rel_model.foreignJson s, op, (result.related n), context
+            rel_model.foreignJson s, (result.related n), foreign_context
           else
             v.toJSON opts
         Promise.props ret_rel_ps
@@ -268,9 +288,18 @@ class AlienDbModel extends AlienModelBase
       Promise.resolve result
 
   # bsmc: bookshelf model or collection
-  foreignJson: (s, xop, bsmc, xcontext) ->
-    model_name = xop?.model?.name ? 'foreignModel'
-    @opHook 'json', s, null, bsmc, "#{model_name}.#{xcontext}"
+  foreignJson: (s, bsmc, context) ->
+    @opHook 'json', s, null, bsmc, context
+
+  _jsonObjectAccessFilter: (s, json_in, context, _vars) ->
+    super.then (json_super) =>
+      master = @master
+      @_mapRelationships json_super, (rel_name, rel, orig_value) ->
+        RelModel = master.model rel.modelName
+        RelModel.foreignAccessFilter s, orig_value, context
+
+  foreignAccessFilter: (s, json, context) ->
+    @jsonAccessFilter s, json, context
 
 # ==== Ops ====================================================================
 

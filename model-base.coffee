@@ -270,8 +270,28 @@ class AlienModelBase extends AlienCommander
       (@opHook 'sendEvent', s, op, result),
       (response, event) => response
 
-  defaultAccessFilter: (s, op, result, context) ->
-    Promise.resolve result
+  _jsonObjectAccessFilter: (s, json, context, _vars) ->
+    Promise.resolve json
+
+  _jsonArrayAccessFilter: (s, json, context, _vars = {}) ->
+    Promise.map json, (i) => @_jsonObjectAccessFilter s, i, context, _vars
+           .filter (i) -> i?
+
+  jsonAccessFilter: (s, json, context) ->
+    if _.isArray json
+      @_jsonArrayAccessFilter s, json, context
+    else if _.isObject json
+      @_jsonObjectAccessFilter s, json, context
+    else
+      Promise.resolve json
+
+  defaultAccessFilter: (s, op, json, context) ->
+    @jsonAccessFilter s, json, context
+    .then (ret) =>
+      if !ret? and json?
+        @errorUnauthorized s, op
+      else
+        ret
 
   defaultAccessGrant: (s, op) ->
     Promise.resolve()
