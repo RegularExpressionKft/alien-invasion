@@ -29,6 +29,8 @@ class AlienModelLoader extends AlienPlugin
     if _.isFunction(s) and !cb?
       cb = s
       s = @app.makeStash()
+
+    error_marker = null
     bookshelf = @bookshelfModule()
     bookshelf.transaction (trx) ->
                s.debug 'transaction BEGIN'
@@ -42,9 +44,21 @@ class AlienModelLoader extends AlienPlugin
                   s.emit 'commit'
                   result),
                ((error) ->
-                  s.debug 'transaction ROLLBACK'
-                  delete s.transaction
-                  s.emit 'rollback'
-                  Promise.reject error)
+                  if s.keep_transaction
+                    error_marker = error
+                    s.debug 'transaction COMMIT (failed)'
+                    delete s.transaction
+                    s.emit 'commit'
+                    null
+                  else
+                    s.debug 'transaction ROLLBACK'
+                    delete s.transaction
+                    s.emit 'rollback'
+                    Promise.reject error)
+    .then (result) ->
+      if error_marker?
+        Promise.reject error_marker
+      else
+        result
 
 module.exports = AlienModelLoader
