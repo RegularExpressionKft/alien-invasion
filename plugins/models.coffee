@@ -1,3 +1,4 @@
+Promise = require 'bluebird'
 require_all = require 'require-all'
 _ = require 'lodash'
 
@@ -31,30 +32,30 @@ class AlienModelLoader extends AlienPlugin
       s = @app.makeStash()
 
     error_marker = null
+    cb = Promise.method cb
     bookshelf = @bookshelfModule()
     bookshelf.transaction (trx) ->
                s.debug 'transaction BEGIN'
                s.transaction = trx
                s.emit 'begin'
-               cb s
-             .then \
-               ((result) ->
-                  s.debug 'transaction COMMIT'
-                  delete s.transaction
-                  s.emit 'commit'
-                  result),
-               ((error) ->
-                  if s.keep_transaction
-                    error_marker = error
-                    s.debug 'transaction COMMIT (failed)'
+               cb(s).then \
+                 ((result) ->
+                    s.debug 'transaction COMMIT'
                     delete s.transaction
                     s.emit 'commit'
-                    null
-                  else
-                    s.debug 'transaction ROLLBACK'
-                    delete s.transaction
-                    s.emit 'rollback'
-                    Promise.reject error)
+                    result),
+                 ((error) ->
+                    if s.keep_transaction
+                      error_marker = error
+                      s.debug 'transaction COMMIT (failed)'
+                      delete s.transaction
+                      s.emit 'commit'
+                      null
+                    else
+                      s.debug 'transaction ROLLBACK'
+                      delete s.transaction
+                      s.emit 'rollback'
+                      Promise.reject error)
     .then (result) ->
       if error_marker?
         Promise.reject error_marker
