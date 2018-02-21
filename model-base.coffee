@@ -314,7 +314,7 @@ class AlienModelBase extends AlienCommander
 
   # TODO
   promiseCheckedId: (s, op, p_unsafe_id, unsafe_ps, what, loc) ->
-    p_unsafe_id.then (unsafe_id) =>
+    Promise.resolve(p_unsafe_id).then (unsafe_id) =>
       for k, v of unsafe_id
         unless @idFieldsAsObject[k] and _.isString v
           loc ?= op?.options.loc
