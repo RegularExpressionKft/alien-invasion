@@ -67,7 +67,7 @@ class AlienModelLoader extends AlienPlugin
     .then (result) ->
       delete s.transaction
       if error_marker?
-        s.debug 'transaction will COMMIT (failed)'
+        s.debug 'transaction did COMMIT (failed)'
         s.emit 'after_commit', error: error_marker
         s.emit 'after_end', 'commit', error: error_marker
         Promise.reject error_marker
