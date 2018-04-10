@@ -62,7 +62,7 @@ class AlienInvasion extends EventEmitter
     stash = @Stash.create arguments...
     cb = _.once -> @submitRealtimeEvents()
     (stash.logger ? @createLogger stash.id).decorate stash
-                                           .on 'commit', cb
+                                           .on 'after_commit', cb
                                            .on 'success', cb
 
   # ==== Backplane
