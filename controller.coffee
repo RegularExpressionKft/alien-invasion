@@ -200,7 +200,7 @@ class AlienController extends AlienCommander
     else
       @errorResponse s, @promiseResponse s, r, @defaultErrorResponse
   _actionException: (s, r) ->
-    s.warn r.stack
+    s[ r.level ? 'warn' ] r.stack
     @exceptionResponse s,
       @promiseResponse s,
         if r.response is undefined then r.toString() else r.response,
