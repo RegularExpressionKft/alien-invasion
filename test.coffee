@@ -63,10 +63,11 @@ class AlienTestUtils
 
   # TODO make this more extensible, configurable
   @makeApp: (test) ->
-    test.timeout 10000
-    (new AlienInvasion mode: 'test')
-    .with 'controllers'
-    .with 'realtime-ws'
+    app = (new AlienInvasion mode: 'test')
+      .with 'controllers'
+      .with 'realtime-ws'
+    test.timeout tt if (tt = app.config.test_timeout)?
+    app
 
   @startApp: (app, test) -> app.start()
 
