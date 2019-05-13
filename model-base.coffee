@@ -149,6 +149,17 @@ class AlienModelBase extends AlienCommander
         code: 'not_found'
   error404: (s, op, fld, loc) -> Mci.promiseError @e404 s, op, fld, loc
 
+  eNotFound: @::e440
+  errorNotFound: @::error404
+
+  eForbidden: (s, op, fld, loc) ->
+    @localizeError s, op, fld, loc,
+      status: 403
+      type: 'json'
+      body:
+        code: 'forbidden'
+  errorForbidden: (s, op, fld, loc) -> Mci.promiseError @eForbidden s, op, fld, loc
+
   eUnauthorized: (s, op, fld, loc) ->
     @localizeError s, op, fld, loc,
       status: 401
