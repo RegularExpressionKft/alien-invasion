@@ -80,10 +80,9 @@ class AlienWsServer extends AlienPlugin
   Router: AlienWsRouter
 
   _init: ->
-    @wss = new WebSocket.Server
-      noServer: true
-    @wss.on 'connection', @onServerConnection
-    @wss.on 'error', @onServerError
+    @wss = new WebSocket.Server noServer: true
+      .on 'connection', @onServerConnection
+      .on 'error', @onServerError
 
     express_module = @app.module @config 'expressModule'
     express_module.server.on 'upgrade', @onUpgrade
@@ -218,7 +217,7 @@ class AlienWsServer extends AlienPlugin
     @warn e
     null
 
-  onRouterDefault: (connection) =>
+  onRouterDefault: (connection) ->
     connection.error "Router defaulted on #{connection.url.pathname}"
     connection.ws.close()
     null
