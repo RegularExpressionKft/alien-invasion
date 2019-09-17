@@ -11,4 +11,8 @@ default_config =
 
 module.exports = (app, module_name, cfgs...) ->
   app.configureModule module_name, default_config, cfgs...
-  Knex app.config[module_name]
+
+  knex = Knex app.config[module_name]
+  app.patch 'stop', 'knex', -> knex.destroy()
+
+  knex
