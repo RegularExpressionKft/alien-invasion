@@ -1,3 +1,4 @@
+_ = require 'lodash'
 webpack = require 'webpack'
 webpack_config = require "#{process.cwd()}/webpack-config"
 
@@ -5,8 +6,6 @@ AlienPlugin = require '../plugin'
 
 class WebpackCompiler extends AlienPlugin
   defaultConfig:
-    watch: aggregateTimeout: 300
-
     compiler:
       colors : true
       chunks : false
@@ -17,7 +16,9 @@ class WebpackCompiler extends AlienPlugin
 
     @debug 'Starting watch...'
 
-    webpack_compiler.watch @config('watch'), (err, stats) =>
+    watch_config = _.defaults @config('watch'), webpack_config.watchOptions
+
+    webpack_compiler.watch watch_config, (err, stats) =>
       if err
         @error err
       else
