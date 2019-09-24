@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/RegularExpressionKft/alien-invasion#readme",
   "dependencies": {
-    "alien-utils": "git+https://github.com/RegularExpressionKft/alien-utils.git#dependency_update_1",
+    "alien-utils": "git+https://github.com/RegularExpressionKft/alien-utils.git",
     "bluebird": "^3.4.7",
     "body-parser": "^1.15.2",
     "bookshelf": "^0.10.2",
