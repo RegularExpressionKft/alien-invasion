@@ -1,5 +1,6 @@
 Promise = require 'bluebird'
 WebSocket = require 'ws'
+EventEmitter = require 'events'
 pathToRegexp = require 'path-to-regexp'
 pu = require 'alien-utils/promise'
 uuid = require 'uuid'
@@ -7,6 +8,9 @@ url = require 'url'
 _ = require 'lodash'
 
 AlienPlugin = require '../plugin'
+
+class AlienWsConnection extends EventEmitter
+  constructor: (properties) -> return _.defaults @, properties
 
 class AlienWsRouter
   constructor: ->
@@ -29,14 +33,14 @@ class AlienWsRouter
     @routes.push route
     route
 
-  findRoute: (info) ->
+  findRoute: (connection) ->
     route = null
-    path = info.req.alienUrl.pathname
+    path = connection.url.pathname
     pu.promiseFirst @routes, (r) ->
         route = r
         if !r.re? or r.re.test path
           if _.isFunction r.check
-            r.check path, info
+            r.check path, connection
           else
             true
         else
@@ -53,17 +57,19 @@ class AlienWsRouter
 
   # TODO Route parameters are only partially implemented:
   #      Missing: repeat, optional, unnamed (more?)
-  dispatch: (route, ws) ->
-    params = {}
-    req = ws.upgradeReq
-    if route.re? and (path = req.alienUrl?.pathname)? and
-       (match = path.match route.re)?
-      params[k.name] = match[i + 1] for k, i in route.keys
-    req.alienLogger.debug \
-      "Matching route [#{route.id}]: #{route.path ? '<generic>'}",
-      params
-    route.handler ws, params
+  dispatch: (connection) ->
+    path = connection.url.pathname
+    route = connection.route
 
+    unless connection.params?
+      params = connection.params = {}
+      if route.re? and path? and (match = path.match route.re)?
+        params[k.name] = match[i + 1] for k, i in route.keys
+    connection.debug \
+      "Matching route [#{route.id}]: #{route.path ? '<generic>'}",
+      connection.params
+
+    route.handler connection
 
 # TODO cookieparser
 # TODO merge connection id / logging with Express
@@ -74,12 +80,146 @@ class AlienWsServer extends AlienPlugin
   Router: AlienWsRouter
 
   _init: ->
+    @wss = new WebSocket.Server noServer: true
+      .on 'connection', @onServerConnection
+      .on 'error', @onServerError
+
     express_module = @app.module @config 'expressModule'
-    @wss = new WebSocket.Server
-      server: express_module.server
-      verifyClient: @_verifyClient.bind @
-    @wss.on 'connection', @onServerConnection
-    @wss.on 'error', @onServerError
+    express_module.server.on 'upgrade', @onUpgrade
+
+    null
+
+  _sendHttpResponse: (connection, response) ->
+    reason = response.reason ?
+      if response.code?
+        if response.status?
+          "#{response.code} #{response.status}"
+        else
+          response.code
+      else if response.status?
+        "<default> #{res.status}"
+      else
+        'denied'
+    connection.info "@@@@ END #{reason} @@@@"
+
+    headers = if response.headers? then _.clone response.headers else {}
+    headers['Connection'] ?= 'close'
+
+    content =
+      if response.text?
+        headers['Content-Type'] ?= 'text/html; charset=utf-8'
+        "#{response.text}"
+      else if response.json?
+        headers['Content-Type'] ?= 'application/json'
+        JSON.stringify response.json
+      else
+        ''
+
+    headers['Content-Length'] ?= content.length if headers['Content-Type']?
+
+    crlf = "\r\n"
+    msg =
+      "HTTP/1.1 #{response.code ? 400} #{response.status ? 'Bad request'}" + crlf +
+      _.map(headers, (v, k) -> "#{k}: #{v}#{crlf}").join('') +
+      crlf +
+      content
+
+    connection.socket.write msg
+    connection.socket.destroy()
+
+    null
+
+  _route: Promise.method (connection) ->
+    if @router?
+      @router.findRoute connection
+      .then (response) ->
+        if response?
+          if response.accept
+            connection.route = response.route if response.route?
+            null
+          else
+            response
+        else
+          code: 404
+          status: 'Not Found'
+          reason: 'no handler'
+      .catch (error) ->
+        connection.error 'findRoute', error
+
+        code: 500
+        status: 'Internal Server Error'
+        reason: 'findRoute exception'
+    else
+      code: 404
+      status: 'Not Found'
+      reason: 'no router'
+
+  onUpgrade: (req, socket, head) =>
+    try
+      connection = new AlienWsConnection
+        connect_date: req.alienStartDate ?= new Date()
+        uuid: req.alienUuid ?= uuid.v4()
+
+        upgrade_request: req
+        socket: socket
+        head: head
+
+        url: req.alienUrl ?=
+          new url.URL req.url, "ws://#{req.headers.host ? 'localhost'}/"
+
+      req.alienLogger ?= @app.createLogger connection.uuid
+      req.alienLogger.decorate connection
+
+      connection.info "@@@@ BEGIN #{connection.logger.id} @@@@",
+        _.pick req, 'method', 'url', 'headers', 'ip'
+
+      @_route connection
+      .then (response) =>
+        if response?
+          @_sendHttpResponse connection, response
+        else
+          @wss.handleUpgrade req, socket, head, (ws) =>
+            @onUpgraded connection, ws
+        null
+      .catch (error) =>
+        connection.error "_route: #{error}", error
+        @_sendHttpResponse connection,
+          code: 500
+          status: 'Internal Server Error'
+          reason: '_route exception'
+    catch error
+      @error "onUpgrade: #{error}", error
+
+    null
+
+  onUpgraded: (connection, ws) ->
+    ws.alienConnection = connection
+    connection.ws = ws
+    connection.debug 'Upgraded.'
+    @wss.emit 'connection', ws
+    null
+
+  onServerConnection: (ws) =>
+    connection = ws.alienConnection
+
+    ws.on 'close', (code, msg) ->
+      connection.info "@@@@ CLOSE @@@@",
+        code: code
+        msg: msg
+      null
+
+    if @router? and connection.route?
+      @router.dispatch connection
+    else
+      @onRouterDefault connection
+
+  onServerError: (e) =>
+    @warn e
+    null
+
+  onRouterDefault: (connection) ->
+    connection.error "Router defaulted on #{connection.url.pathname}"
+    connection.ws.close()
     null
 
   addRoute: (path, options) ->
@@ -87,73 +227,5 @@ class AlienWsServer extends AlienPlugin
     options = handler: options if _.isFunction options
     route = @router.newRoute path, options
     route.id
-
-  # Fatarrow changes function.length as of 1.12.4
-  # https://github.com/jashkenas/coffeescript/issues/2489
-  # _verifyClient: (info, cb) =>
-  _verifyClient: (info, cb) ->
-    req = info.req
-    req.alienStartDate ?= new Date()
-    u = req.alienUuid = uuid.v4()
-    l = req.alienLogger = @app.createLogger u
-    l.info "@@@@ BEGIN #{l.id} @@@@",
-      _.pick req, 'method', 'url', 'headers', 'ip'
-
-    if @router?
-      req.alienUrl =
-        new url.URL req.url, "ws://#{req.headers.host ? 'localhost'}/"
-
-      @router.findRoute info
-             .then (res) ->
-               if res?
-                 if res.accept
-                   req.alienWsRoute = res.route
-                 else
-                   reason = if res.code?
-                       if res.string?
-                         "#{res.code} #{res.string}"
-                       else
-                         res.code
-                     else if res.string?
-                       "<default> #{res.string}"
-                     else
-                       'denied'
-                   l.info "@@@@ END #{reason} @@@@"
-                 cb res.accept, res.code, res.string
-               else
-                 l.info '@@@@ END no handler @@@@'
-                 cb false, 404, 'Not Found'
-             .catch (error) ->
-               l.error 'checkPath', error
-               l.info '@@@@ END exception @@@@'
-               cb false, 500, 'Internal Server Error'
-    else
-      l.info '@@@@ END no router @@@@'
-      cb false, 404, 'Not Found'
-
-  onServerConnection: (ws) =>
-    req = ws.upgradeReq
-    logger = req.alienLogger
-    logger.debug 'Upgraded.'
-
-    ws.on 'close', (code, msg) ->
-      logger.info "@@@@ CLOSE @@@@",
-        code: code
-        msg: msg
-      null
-
-    if @router? and req.alienWsRoute?
-      @router.dispatch req.alienWsRoute, ws
-    else
-      @onRouterDefault req.alienUrl.pathname, ws
-
-  onServerError: (e) =>
-    @warn e
-    null
-
-  onRouterDefault: (path, ws) =>
-    ws.upgradeReq.alienLogger.error "Router defaulted on #{path}"
-    ws.close()
-    null
 
 module.exports = AlienWsServer
