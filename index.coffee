@@ -73,7 +73,7 @@ class AlienInvasion extends EventEmitter
 
   publish: (e) ->
     @backplane.publish.apply @backplane,
-      if _.isArray e then e else arguments
+      if arguments.length == 1 and _.isArray e then e else arguments
 
   # ==== Plugins / Modules
 
