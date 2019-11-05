@@ -81,7 +81,7 @@ class AlienBackplane
     for channel_id in channel_ids
       for endpoint_id, endpoint of @channels[channel_id]
         try
-          endpoint.cb arguments...
+          endpoint.cb channel_id, args...
         catch error
           @app.error "Backplane #{endpoint_id} exception:", error
     null
