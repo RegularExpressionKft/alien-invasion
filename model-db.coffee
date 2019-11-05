@@ -165,7 +165,7 @@ class AlienDbModel extends AlienModelBase
           (db_object) =>
             db_options_ = _.extend require: true, db_options
             p = if !db_object.isNew() and (db_options_.patch ?= true)
-                save = _.filter db_object.keys(), (k) -> db_object.hasChanged k
+                save = _.filter _.keys(db_object.attributes), (k) -> db_object.hasChanged k
                 if save.length
                   db_object.save db_object.pick(save), db_options_
                 else

@@ -5,8 +5,4 @@ default_config =
 
 module.exports = (app, module_name, cfgs...) ->
   app.configureModule module_name, default_config, cfgs...
-
-  knex = app.module app.config[module_name].knexModule
-  bookshelf = Bookshelf knex
-  bookshelf.plugin 'registry'
-  bookshelf
+  Bookshelf app.module app.config[module_name].knexModule
