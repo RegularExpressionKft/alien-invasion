@@ -76,12 +76,14 @@ class AlienBackplane
       throw new Error "Unknown endpoint: #{endpoint_id}"
     _.keys endpoint.channels
 
-  publish: (channel_id, args...) ->
-    for endpoint_id, endpoint of @channels[channel_id]
-      try
-        endpoint.cb arguments...
-      catch error
-        @app.error "Backplane #{endpoint_id} exception:", error
+  publish: (channel_ids, args...) ->
+    channel_ids = [ channel_ids ] unless _.isArray channel_ids
+    for channel_id in channel_ids
+      for endpoint_id, endpoint of @channels[channel_id]
+        try
+          endpoint.cb channel_id, args...
+        catch error
+          @app.error "Backplane #{endpoint_id} exception:", error
     null
 
 module.exports = AlienBackplane
