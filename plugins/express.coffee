@@ -102,7 +102,7 @@ class AlienExpress extends AlienPlugin
 
     log_end = (ms) =>
       req.alienLogger?.debug "Performance stats:", JSON.stringify
-        route: "#{req.method} #{req.route?.path ? req.url}"
+        route: "#{req.method} #{req.route?.path ? req.url.replace(/\?.*/, '')}"
         status: res.statusCode
         contentLength: intify res.getHeader 'content-length'
         contentType: res.getHeader 'content-type'
