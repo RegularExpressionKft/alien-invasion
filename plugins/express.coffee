@@ -43,7 +43,7 @@ class AlienExpress extends AlienPlugin
 
     @express.use @_loggerMiddleware.bind @
     @express.use cookie_parser()
-    @express.use body_parser.json()
+    @express.use body_parser.json limit: '4mb'
     @express.use body_parser.urlencoded
       extended: true
     if router_prefix?
