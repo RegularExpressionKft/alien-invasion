@@ -76,14 +76,21 @@ class AlienBackplane
       throw new Error "Unknown endpoint: #{endpoint_id}"
     _.keys endpoint.channels
 
-  publish: (channel_ids, args...) ->
-    channel_ids = [ channel_ids ] unless _.isArray channel_ids
+  federate_in: (channel_ids, messages) ->
     for channel_id in channel_ids
       for endpoint_id, endpoint of @channels[channel_id]
         try
-          endpoint.cb channel_id, args...
+          endpoint.cb channel_id, messages...
         catch error
           @app.error "Backplane #{endpoint_id} exception:", error
     null
+
+  # override me
+  federate_out: (channel_ids, messages) -> null
+
+  publish: (channel_ids, messages...) ->
+    channel_ids = [ channel_ids ] unless _.isArray channel_ids
+    @federate_out channel_ids, messages
+    @federate_in channel_ids, messages
 
 module.exports = AlienBackplane
