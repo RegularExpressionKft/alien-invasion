@@ -90,7 +90,9 @@ class AlienBackplane
 
   publish: (channel_ids, messages...) ->
     channel_ids = [ channel_ids ] unless _.isArray channel_ids
-    @federate_out channel_ids, messages
-    @federate_in channel_ids, messages
+    if @federate_out channel_ids, messages
+      null
+    else
+      @federate_in channel_ids, messages
 
 module.exports = AlienBackplane
