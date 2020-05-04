@@ -34,7 +34,7 @@ class AlienDbModel extends AlienModelBase
 
   defaultDbOptions: (s, op, db_op) ->
     db_options = {}
-    db_options.transacting = s.transaction if s.transaction?
+    db_options.transacting = s.transaction.trx if s.transaction?
     if (wr = op?.options.withRelated)? and
        (!db_op? or db_op.match /select|refresh/)
       db_options.withRelated = wr
