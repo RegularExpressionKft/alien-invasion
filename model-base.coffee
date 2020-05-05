@@ -194,7 +194,11 @@ class AlienModelBase extends AlienCommander
       @["#{k}AsObject"] = true_object @[k] if @[k]?
     @
 
-  extractId: (s, obj) -> obj.pick @idFields
+  extractId: (s, obj) ->
+    if _.isFunction obj.pick
+      obj.pick @idFields
+    else
+      _.pick obj, @idFields
 
 # ==== Relations ==============================================================
 
