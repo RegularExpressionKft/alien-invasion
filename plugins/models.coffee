@@ -42,7 +42,7 @@ class AlienModelLoader extends AlienPlugin
 
     s.emit 'before_begin', transaction
     bookshelf = @bookshelfModule()
-    bookshelf.transaction (trx) ->
+    Promise.resolve bookshelf.transaction (trx) ->
       transaction.trx = trx
 
       s.debug "transaction #{seq} BEGIN"
