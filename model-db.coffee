@@ -34,7 +34,7 @@ class AlienDbModel extends AlienModelBase
 
   defaultDbOptions: (s, op, db_op) ->
     db_options = {}
-    db_options.transacting = s.transaction if s.transaction?
+    db_options.transacting = s.transaction.trx if s.transaction?
     if (wr = op?.options.withRelated)? and
        (!db_op? or db_op.match /select|refresh/)
       db_options.withRelated = wr
@@ -271,21 +271,25 @@ class AlienDbModel extends AlienModelBase
       if _.keys(res_rels).some((r) -> my_rels[r]?)
         ret_rel_ps = {}
         ret = result.toJSON _.extend shallow: true, opts
-        foreign_context = "#{@name}.#{context}"
-        for n, v of res_rels
-          ret_rel_ps[n] = if my_rels[n]?
-            rel_model = @master.model my_rels[n].modelName
-            rel_model.foreignJson s, (result.related n), foreign_context
-          else
-            v.toJSON opts
-        Promise.props ret_rel_ps
-               .then (ret_rels) ->
-                 ret[n] = v for n, v of ret_rels when v? and !_.isEmpty v
-                 ret
+        Promise.resolve @foreignContext s, op, context
+        .then (foreign_context) =>
+          for n, v of res_rels
+            ret_rel_ps[n] = if my_rels[n]?
+              rel_model = @master.model my_rels[n].modelName
+              rel_model.foreignJson s, (result.related n), foreign_context
+            else
+              v.toJSON opts
+          Promise.props ret_rel_ps
+                 .then (ret_rels) ->
+                   ret[n] = v for n, v of ret_rels when v? and !_.isEmpty v
+                   ret
       else
         Promise.resolve result.toJSON opts
     else
       Promise.resolve result
+
+  foreignContext: (s, op, context) ->
+    "#{@name}#{if op? then ":#{op.name}" else ''}.#{context}"
 
   # bsmc: bookshelf model or collection
   foreignJson: (s, bsmc, context) ->

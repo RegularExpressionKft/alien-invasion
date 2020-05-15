@@ -9,6 +9,8 @@ _ = require 'lodash'
 
 AlienPlugin = require '../plugin'
 
+intify = (x) -> if _.isFinite(y = parseInt x) then y else x
+
 class AlienExpressTransaction
   transport: 'express'
   protocol: 'http'
@@ -41,7 +43,7 @@ class AlienExpress extends AlienPlugin
 
     @express.use @_loggerMiddleware.bind @
     @express.use cookie_parser()
-    @express.use body_parser.json()
+    @express.use body_parser.json limit: '4mb'
     @express.use body_parser.urlencoded
       extended: true
     if router_prefix?
@@ -99,6 +101,13 @@ class AlienExpress extends AlienPlugin
       _.pick req, 'method', 'url', 'headers', 'ip'
 
     log_end = (ms) =>
+      req.alienLogger?.debug "Performance stats:", JSON.stringify
+        route: "#{req.method} #{req.route?.path ? req.url.replace(/\?.*/, '')}"
+        status: res.statusCode
+        contentLength: intify res.getHeader 'content-length'
+        contentType: res.getHeader 'content-type'
+        toResponseMs: req.alienResponseDate - req.alienStartDate
+        toFinishMs: ms
       req.alienLogger?.info "#### END #{ms}ms ####"
     req.on 'end', ->
       req.alienEndDate = new Date()
@@ -131,6 +140,8 @@ class AlienExpress extends AlienPlugin
 
   respond: (s, response) ->
     unless s.request.responseSent
+      s.request.express.req.alienResponseDate = new Date()
+
       res = s.request.express.res
       res.set k, v for k, v of response.headers
       res.status response.status if response.status?
