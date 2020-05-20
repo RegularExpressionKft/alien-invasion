@@ -98,7 +98,7 @@ class AlienModelLoader extends AlienPlugin
 
         if my_stash
           if transaction.reject?
-            s.emit 'error', transaction.reject if s.listenerCount(r.result) > 0
+            s.emit 'error', transaction.reject if s.listenerCount('error') > 0
           else
             s.emit 'success', transaction.resolve
 
@@ -121,7 +121,7 @@ class AlienModelLoader extends AlienPlugin
 
         if my_stash
           if transaction.reject?
-            s.emit 'error', transaction.reject if s.listenerCount(r.result) > 0
+            s.emit 'error', transaction.reject if s.listenerCount('error') > 0
           else
             s.emit 'success', transaction.resolve
 
