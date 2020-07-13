@@ -51,6 +51,13 @@ class AlienDbModel extends AlienModelBase
     else
       @opHook 'dbOptions', s, op, db_op
 
+  getKnex: (s) ->
+    s?.transaction?.trx ? @bookshelf.knex
+
+  knex: (s) ->
+    knex = @getKnex s
+    knex @getBookshelfConfig().tableName
+
 # ---- Relations --------------------------------------------------------------
 
   # TODO inherited relations
