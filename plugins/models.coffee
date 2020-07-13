@@ -24,7 +24,8 @@ class AlienModelLoader extends AlienPlugin
 
   model: (model_name) -> @models[model_name]
 
-  bookshelfModule: -> @app.module @config 'bookshelfModule'
+  bookshelfModule: ->
+    @bookshelf ?= @app.module @config 'bookshelfModule'
 
   transaction: (s, cb) ->
     if (my_stash = _.isFunction(s) and !cb?)
@@ -131,5 +132,16 @@ class AlienModelLoader extends AlienPlugin
           Promise.reject transaction.reject
         else
           transaction.resolve)
+
+  getKnex: (s) ->
+    s?.transaction?.trx ? @bookshelfModule().knex
+
+  knexRaw: (s, sql...) ->
+    Promise.resolve(
+      @getKnex s
+      .raw sql...)
+
+  rawSql: (sql...) ->
+    @bookshelfModule().knex.raw sql...
 
 module.exports = AlienModelLoader

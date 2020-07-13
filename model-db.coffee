@@ -58,6 +58,14 @@ class AlienDbModel extends AlienModelBase
     knex = @getKnex s
     knex @getBookshelfConfig().tableName
 
+  knexRaw: (s, sql...) ->
+    Promise.resolve(
+      @getKnex s
+      .raw sql...)
+
+  rawSql: (sql...) ->
+    @bookshelf.knex.raw sql...
+
 # ---- Relations --------------------------------------------------------------
 
   # TODO inherited relations
