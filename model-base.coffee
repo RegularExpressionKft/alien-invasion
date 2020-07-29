@@ -214,10 +214,16 @@ class AlienModelBase extends AlienCommander
     @
 
   @belongsTo: (rel_name, model_name, foreign_key) ->
-    @_initRelation 'belongsTo', rel_name, model_name, foreign_key: foreign_key
+    if foreign_key?
+      @_initRelation 'belongsTo', rel_name, model_name, foreign_key: foreign_key
+    else
+      @_initRelation 'belongsTo', rel_name, model_name
 
   @hasMany: (rel_name, model_name, foreign_key) ->
-    @_initRelation 'hasMany', rel_name, model_name, foreign_key: foreign_key
+    if foreign_key?
+      @_initRelation 'hasMany', rel_name, model_name, foreign_key: foreign_key
+    else
+      @_initRelation 'hasMany', rel_name, model_name
 
   @belongsToMany: (rel_name, model_name, join_table_name) ->
     @_initRelation 'belongsToMany', rel_name, model_name,
