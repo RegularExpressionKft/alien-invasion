@@ -1,5 +1,5 @@
 Promise = require 'bluebird'
-require_all = require 'require-all'
+require_source = require 'alien-utils/require-sources'
 _ = require 'lodash'
 
 AlienPlugin = require '../plugin'
@@ -10,14 +10,11 @@ class AlienModelLoader extends AlienPlugin
     bookshelfConfig:
       idAttribute: 'id'
     dir: "#{process.cwd()}/Models"
-    filter: /^([0-9A-Za-z].*?)\.(?:js|coffee)$/
 
   _init: ->
     config = @config()
-    @modelMakers = require_all
+    @modelMakers = require_source
       dirname: config.dir
-      filter: config.filter
-      recursive: true
     @models = _.mapValues @modelMakers,
       (Cls, name) => new Cls @app, @, name
     null

@@ -1,4 +1,4 @@
-fs = require 'fs'
+require_source = require 'alien-utils/require-sources'
 _ = require 'lodash'
 
 AlienPlugin = require '../plugin'
@@ -13,13 +13,8 @@ class AlienControllerLoader extends AlienPlugin
 
   _init: ->
     config = @config()
-    @controllerClasses = {}
-    fs.readdirSync(config.dir).forEach (file) =>
-      if !fs.statSync("#{config.dir}/#{file}").isDirectory() &&
-         file.match /\.(js|coffee)$/
-        basename = file.replace /\.[^.]+$/, ''
-        @controllerClasses[basename] ?= require "#{config.dir}/#{basename}"
-
+    @controllerClasses = require_source
+      dirname: config.dir
     @controllers = _.mapValues @controllerClasses,
       (CtrlClass, ctrl_name) =>
         ctrl = Object.create CtrlClass::
