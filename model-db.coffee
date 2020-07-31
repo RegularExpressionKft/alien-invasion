@@ -75,6 +75,8 @@ class AlienDbModel extends AlienModelBase
       ->
         if rel.type is 'belongsToMany'
           @[rel.type] bookshelf.model(rel.modelName), rel.joinTableName
+        else if rel.foreign_key?
+          @[rel.type] bookshelf.model(rel.modelName), rel.foreign_key
         else
           @[rel.type] bookshelf.model(rel.modelName)
 
