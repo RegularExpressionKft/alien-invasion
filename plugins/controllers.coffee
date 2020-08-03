@@ -1,4 +1,4 @@
-require_all = require 'require-all'
+require_source = require 'alien-utils/require-sources'
 _ = require 'lodash'
 
 AlienPlugin = require '../plugin'
@@ -6,7 +6,6 @@ AlienPlugin = require '../plugin'
 class AlienControllerLoader extends AlienPlugin
   defaultConfig:
     dir: "#{process.cwd()}/Controllers"
-    filter: /^([0-9A-Za-z].*?)\.(?:js|coffee)$/
     # TODO
     # transportModules: ['express', 'realtime-ws']
     transportModules: ['express']
@@ -14,10 +13,8 @@ class AlienControllerLoader extends AlienPlugin
 
   _init: ->
     config = @config()
-    @controllerClasses = require_all
+    @controllerClasses = require_source
       dirname: config.dir
-      filter: config.filter
-      recursive: true
     @controllers = _.mapValues @controllerClasses,
       (CtrlClass, ctrl_name) =>
         ctrl = Object.create CtrlClass::

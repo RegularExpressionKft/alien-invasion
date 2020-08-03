@@ -2,7 +2,7 @@
   "name": "alien-invasion",
   "version": "1.0.0",
   "description": "Web backend development framework.",
-  "main": "index.coffee",
+  "main": "index",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -29,7 +29,6 @@
     "lodash": "^4.17.4",
     "methods": "^1.1.2",
     "path-to-regexp": "^1.7.0",
-    "require-all": "^2.1.0",
     "superagent": "^3.3.1",
     "supertest": "^2.0.1",
     "uuid": "^3.0.1",
