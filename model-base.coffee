@@ -1,4 +1,5 @@
 Promise = require 'bluebird'
+assert = require 'assert'
 _ = require 'lodash'
 
 AlienCommander = require 'alien-utils/commander'
@@ -199,6 +200,27 @@ class AlienModelBase extends AlienCommander
       obj.pick @idFields
     else
       _.pick obj, @idFields
+
+  idAsString: (id_obj, separator = ':') ->
+    if @idFields.length == 1 and _.isString(id_obj)
+      id_obj
+    else
+      assert _.isObject(id_obj), 'id_obj is object'
+      @idFields.map (f) ->
+        assert _.isString(v = id_obj[f]), "id has #{f}"
+        assert v.indexOf(separator) < 0, "id.#{f} doesn't contain separator (#{separator})"
+        v
+      .join separator
+
+  idFromString: (id_str, separator = ':') ->
+    assert _.isString(id_str), 'id_str is string'
+
+    id_values = id_str.split separator
+    assert.equal id_values.length, @idFields.length, 'id field count'
+
+    id_obj = {}
+    id_obj[f] = id_values[i] for f, i in @idFields
+    id_obj
 
 # ==== Relations ==============================================================
 

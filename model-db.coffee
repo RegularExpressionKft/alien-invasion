@@ -250,6 +250,33 @@ class AlienDbModel extends AlienModelBase
                            db_options, qb
                        .destroy db_options
 
+# ==== Cache ==================================================================
+
+  _getCache: (s) ->
+    if s.transaction?
+      s.transaction.cache ?= {}
+    else
+      s.cache ?= {}
+
+  setCached: (s, tag, result) ->
+    cache = @_getCache s
+    cache[tag] = Promise.resolve result
+
+  promiseCached: (s, tag, loader) ->
+    cache = @_getCache s
+    unless cache[tag]?
+      loader = Promise.method loader
+      cache[tag] = guard = loader().tapCatch ->
+        delete cache[tag] if cache[tag] == guard
+        null
+    cache[tag]
+
+  promiseCachedDbObject: (s, op, p_id, p_db_options) ->
+    Promise.resolve p_id
+    .then (id) =>
+      @promiseCached s, "#{@name}:#{@idAsString id}", =>
+        @promiseLoadedDbObject s, op, id, p_db_options
+
 # ==== Hooks ==================================================================
 
   hooks: @::hooks.derive dbOptions: 'defaultDbOptions'
