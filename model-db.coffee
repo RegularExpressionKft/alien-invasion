@@ -212,9 +212,13 @@ class AlienDbModel extends AlienModelBase
   _loadUpdateDbObject: (s, op, p_id, p_properties, p_db_options) ->
     @dbOptions s, op, 'update-loaded', p_db_options
     .then (db_options) =>
-      p_obj = @promiseLoadedDbObject s, op, p_id,
-                db_options.alienLoadOptions ?
-                  db_options.alienLoadOrRefreshOptions
+      p_obj =
+        if db_options.object?
+          Promise.resolve db_options.object
+        else
+          load_options = db_options.alienLoadOptions ?
+            db_options.alienLoadOrRefreshOptions
+          @promiseLoadedDbObject s, op, p_id, load_options
       p_obj = Promise.join p_obj, p_properties,
         (obj, properties) -> obj.set properties
       @promiseSavedDbObject s, op, p_obj, db_options
@@ -264,7 +268,7 @@ class AlienDbModel extends AlienModelBase
 
   promiseCached: (s, tag, loader) ->
     cache = @_getCache s
-    unless cache[tag]?
+    if loader? and !cache[tag]?
       loader = Promise.method loader
       cache[tag] = guard = loader().tapCatch ->
         delete cache[tag] if cache[tag] == guard
@@ -352,15 +356,18 @@ class AlienDbModel extends AlienModelBase
 # ==== Ops ====================================================================
 
   opReadAction: (s, op, id, db_options) ->
-    p = @promiseLoadedDbObject s, op,
-      (id ? op.promise s, 'id'),
-      db_options
-    if op?
-      p.then (obj) ->
-        op.addCached 'object', obj
-        obj
+    if (obj = op?.getCached s, 'object')?
+      Promise.resolve obj
     else
-      p
+      p = @promiseLoadedDbObject s, op,
+        (id ? op.promise s, 'id'),
+        db_options
+      if op?
+        p.then (obj) ->
+          op.addCached s, 'object', obj
+          obj
+      else
+        p
 
   opListAction: (s, op, filters, db_options) ->
     @promiseLoadedDbObjects s, op,
@@ -380,6 +387,9 @@ class AlienDbModel extends AlienModelBase
       p
 
   opUpdateAction: (s, op, id, properties, db_options) ->
+    if !db_options? and (obj = op?.getCached s, 'object')?
+      db_options = object: obj
+
     p = @promiseUpdatedDbObject s, op,
       (id ? op.promise s, 'id'),
       (properties ? op.promise s, 'properties'),
