@@ -279,7 +279,7 @@ class AlienDbModel extends AlienModelBase
     else if _.isFunction thing?.then
       @_uncacheRejected thing, cache, tag
     else
-      Promise.resolve result
+      Promise.resolve thing
 
   getCacheTag: (s, obj) ->
     id =
@@ -306,8 +306,8 @@ class AlienDbModel extends AlienModelBase
     cache[tag] ?= @_cacheLoader thing, cache, tag
 
   promiseCachedDbObject: (s, op, p_id, p_db_options) ->
-    Promise.resolve p_id
-    .then (id) =>
+    p_id = if p_id? then Promise.resolve p_id else op.promise s, 'id'
+    p_id.then (id) =>
       @promiseCached s, @getCacheTag(s, id), =>
         @promiseLoadedDbObject s, op, id, p_db_options
 
