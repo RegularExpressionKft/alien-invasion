@@ -212,9 +212,13 @@ class AlienDbModel extends AlienModelBase
   _loadUpdateDbObject: (s, op, p_id, p_properties, p_db_options) ->
     @dbOptions s, op, 'update-loaded', p_db_options
     .then (db_options) =>
-      p_obj = @promiseLoadedDbObject s, op, p_id,
-                db_options.alienLoadOptions ?
-                  db_options.alienLoadOrRefreshOptions
+      p_obj =
+        if db_options.object?
+          Promise.resolve db_options.object
+        else
+          load_options = db_options.alienLoadOptions ?
+            db_options.alienLoadOrRefreshOptions
+          @promiseLoadedDbObject s, op, p_id, load_options
       p_obj = Promise.join p_obj, p_properties,
         (obj, properties) -> obj.set properties
       @promiseSavedDbObject s, op, p_obj, db_options
@@ -249,6 +253,75 @@ class AlienDbModel extends AlienModelBase
                          @_buildQuery s, op, 'delete-many', filters,
                            db_options, qb
                        .destroy db_options
+
+# ==== Cache ==================================================================
+
+  _getCache: (s) ->
+    if s.transaction?
+      s.transaction.cache ?= {}
+    else
+      s.cache ?= {}
+
+  _uncacheRejected: (promise, cache, tag) ->
+    promise = Promise.resolve promise unless _.isFunction promise.isPending
+    if promise.isPending()
+      guard = promise.tapCatch ->
+        delete cache[tag] if cache[tag] == guard
+    else if promise.isFulfilled()
+      promise
+    else
+      null
+
+  _cacheLoader: (thing, cache, tag) ->
+    if _.isFunction thing
+      loader = Promise.method thing
+      @_uncacheRejected loader(), cache, tag
+    else if _.isFunction thing?.then
+      @_uncacheRejected thing, cache, tag
+    else
+      Promise.resolve thing
+
+  getCacheTag: (s, obj) ->
+    id =
+      if _.isFunction obj.get
+        @extractId s, obj
+      else
+        obj
+    "#{@name}:#{@idAsString id}"
+
+  unsetCached: (s, tag, thing) ->
+    tag = @getCacheTag s, tag unless _.isString tag
+    cache = @_getCache s
+    delete cache[tag] if !thing? or cache[tag] == thing
+    null
+
+  setCached: (s, tag, thing) ->
+    tag = @getCacheTag s, thing ?= tag unless _.isString tag
+    cache = @_getCache s
+    cache[tag] = @_cacheLoader thing, cache, tag
+
+  promiseCached: (s, tag, thing) ->
+    tag = @getCacheTag s, thing ?= tag unless _.isString tag
+    cache = @_getCache s
+    cache[tag] ?= @_cacheLoader thing, cache, tag
+
+  promiseCachedDbObject: (s, op, p_id, p_db_options) ->
+    p_id = if p_id? then Promise.resolve p_id else op.promise s, 'id'
+    p_id.then (id) =>
+      @promiseCached s, @getCacheTag(s, id), =>
+        @promiseLoadedDbObject s, op, id, p_db_options
+
+  promiseCachedObject: (s, op, p_id, p_db_options) ->
+    if op?
+      op.promise s, 'object', @promiseCachedDbObject, p_id, p_db_options
+    else
+      @promiseCachedDbObject s, op, p_id, p_db_options
+
+  promiseObject: (s, op, p_id, p_db_options) ->
+    if op?
+      op.promise s, 'object', @promiseLoadedDbObject, p_id, p_db_options
+    else
+      @promiseLoadedDbObject s, op, p_id, p_db_options
 
 # ==== Hooks ==================================================================
 
@@ -325,15 +398,7 @@ class AlienDbModel extends AlienModelBase
 # ==== Ops ====================================================================
 
   opReadAction: (s, op, id, db_options) ->
-    p = @promiseLoadedDbObject s, op,
-      (id ? op.promise s, 'id'),
-      db_options
-    if op?
-      p.then (obj) ->
-        op.addCached 'object', obj
-        obj
-    else
-      p
+    @promiseObject s, op, (id ? op.promise s, 'id'), db_options
 
   opListAction: (s, op, filters, db_options) ->
     @promiseLoadedDbObjects s, op,
@@ -345,14 +410,19 @@ class AlienDbModel extends AlienModelBase
       (properties ? op.promise s, 'properties'),
       db_options
     if op?
-      p.then (obj) =>
-        op.setValue s, 'id', @extractId s, obj
-        op.setCached s, 'object', obj
-        obj
+      Promise.join(
+        p,
+        op.promiseToCache(s, 'object', p),
+        op.promiseToCache(s, 'id', p.then (obj) => @extractId s, obj),
+        (obj) -> obj)
     else
-      p
+    p
 
   opUpdateAction: (s, op, id, properties, db_options) ->
+    if !db_options? and op? and
+       (obj = op.getCached(s, 'object') ? op.getPromise(s, 'object'))?
+      db_options = object: obj
+
     p = @promiseUpdatedDbObject s, op,
       (id ? op.promise s, 'id'),
       (properties ? op.promise s, 'properties'),
