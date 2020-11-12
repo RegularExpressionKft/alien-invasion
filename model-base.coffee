@@ -374,7 +374,7 @@ class AlienModelBase extends AlienCommander
 
   # TODO
   promiseCheckedProperties: (s, op, p_unsafe_props, unsafe_ps, what, loc) ->
-    p_unsafe_props
+    Promise.resolve p_unsafe_props
 
   defaultImportSafeParameters: (s, op, safe_ps) ->
     for k, v of safe_ps
