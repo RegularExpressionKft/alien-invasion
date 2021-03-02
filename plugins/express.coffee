@@ -11,6 +11,22 @@ AlienPlugin = require '../plugin'
 
 intify = (x) -> if _.isFinite(y = parseInt x) then y else x
 
+numCmp = (a, b) ->
+  if a - b < 0
+    -1
+  else if a - b > 0
+    1
+  else
+    0
+
+strCmp = (a, b) ->
+  if a < b
+    -1
+  else if a > b
+    1
+  else
+    0
+
 class AlienExpressTransaction
   transport: 'express'
   protocol: 'http'
@@ -32,30 +48,75 @@ class AlienExpressTransaction
 class AlienExpress extends AlienPlugin
   defaultConfig:
     port: 6543
+    size_limit: '4mb'
+    middleware:
+      'alien-logger':
+        priority: 0
+        install: (plugin) ->
+          plugin.express.use plugin._loggerMiddleware
+      'cookie-parser':
+        priority: 10
+        install: (plugin) ->
+          plugin.express.use cookie_parser()
+      'body-parser-json':
+        priority: 20
+        install: (plugin) ->
+          defaults = {}
+          defaults.limit = t if (t = plugin.config 'size_limit')?
+          options = _.defaults {}, @options, defaults
+          plugin.express.use body_parser.json options
+      'body-parser-urlencoded':
+        priority: 21
+        options:
+          extended: true
+        install: (plugin) ->
+          # ignore global size limit
+          plugin.express.use body_parser.urlencoded @options
+      'body-parser-raw':
+        priority: 29
+        options:
+          type: 'application/octet-stream'
+        install: (plugin) ->
+          defaults = {}
+          defaults.limit = t if (t = plugin.config 'size_limit')?
+          options = _.defaults {}, @options, defaults
+          plugin.express.use body_parser.raw options
+      router:
+        priority: 100
+        install: (plugin) ->
+          if (router_prefix = plugin.config 'routerPrefix')?
+            plugin.express.use router_prefix, plugin.router
+          else
+            plugin.express.use plugin.router
+      static:
+        priority: 200
+        install: (plugin) ->
+          if (static_dirs = plugin.config 'staticDirs')?
+            static_dirs.forEach (dir) ->
+              plugin.express.use express.static dir
+          plugin.express
+      error404:
+        priority: 1000
+        install: (plugin) ->
+          plugin.express.use plugin._handle404
 
   _init: ->
     @express = express()
     @router = express.Router()
     @server = Http.Server @express
 
-    router_prefix = @config 'routerPrefix'
-    static_dirs = @config 'staticDirs'
-
-    @express.use @_loggerMiddleware.bind @
-    @express.use cookie_parser()
-    @express.use body_parser.json limit: '4mb'
-    @express.use body_parser.urlencoded
-      extended: true
-    if router_prefix?
-      @express.use router_prefix, @router
-    else
-      @express.use @router
-    if static_dirs?
-      static_dirs.forEach (dir) =>
-        @express.use express.static dir
-
-    @express.use (req, res, next) =>
-      @handle404 req, res, next
+    middlewares = @config 'middleware'
+    order = _.keys(middlewares).filter (m) ->
+      (mw = middlewares[m])? and
+      (mw.enabled ? true) and
+      _.isFinite(mw.priority) and
+      _.isFunction(mw.install)
+    order.sort (a, b) ->
+      if (o = numCmp middlewares[a].priority, middlewares[b].priority) == 0
+        strCmp a, b
+      else
+        o
+    middlewares[m].install @ for m in order
 
     null
 
@@ -92,7 +153,12 @@ class AlienExpress extends AlienPlugin
   handle404: (req, res, next) ->
     next()
 
-  _loggerMiddleware: (req, res, next) ->
+  _handle404: (req, res, next) =>
+    # handle404 may be overriden / replaced
+    # may or may not be bound
+    @handle404 req, res, next
+
+  _loggerMiddleware: (req, res, next) =>
     req.alienStartDate ?= new Date()
 
     u = req.alienUuid = uuid.v4()
