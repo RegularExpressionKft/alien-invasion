@@ -435,6 +435,8 @@ class AlienModelBase extends AlienCommander
     else
       Promise.resolve null
 
+  rawJson: (s, op, result, context) -> result
+
   # TODO make MCI optional
   defaultResponse: (s, op, result) ->
     context = 'response'
