@@ -15,6 +15,12 @@ true_object = (keys) ->
   obj[k] = true for k in keys
   obj
 
+log_filter_buffer = (obj) ->
+  if _.isBuffer obj
+    "Buffer[#{obj.toString().length}]"
+  else
+    obj
+
 ###### AlienModelOperation ####################################################
 
 class AlienModelOperation extends AlienCommander
@@ -258,6 +264,7 @@ class AlienModelBase extends AlienCommander
       accessGrant: 'defaultAccessGrant'
       check: 'defaultCheck'
       done: 'defaultDone'
+      dumpParams: 'defaultDumpParams'
       event: 'defaultEvent'
       eventChannel: 'defaultEventChannel'
       importSafeParameters: 'defaultImportSafeParameters'
@@ -284,9 +291,7 @@ class AlienModelBase extends AlienCommander
     p_safe = if safe_params? then Promise.props safe_params else null
     p_unsafe = if unsafe_params? then Promise.props unsafe_params else null
     Promise.join p_safe, p_unsafe, (safe, unsafe) =>
-      s.info "Model #{@name} op #{gop.name} params",
-        safe: safe
-        unsafe: unsafe
+      @opHook 'dumpParams', s, gop, safe, unsafe
 
     op = gop.start s, _.defaults model: @, options
     if safe_params?
@@ -312,6 +317,11 @@ class AlienModelBase extends AlienCommander
       (@opHook 'response', s, op, result),
       (@opHook 'sendEvent', s, op, result),
       (response, event) => response
+
+  defaultDumpParams: (s, op, safe, unsafe) ->
+    s.info "Model #{@name} op #{op.name} params",
+      safe: _.mapValues safe, log_filter_buffer
+      unsafe: _.mapValues unsafe, log_filter_buffer
 
   _jsonObjectAccessFilter: (s, json, context, _vars) ->
     Promise.resolve json
