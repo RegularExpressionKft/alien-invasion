@@ -15,6 +15,12 @@ true_object = (keys) ->
   obj[k] = true for k in keys
   obj
 
+log_filter_buffer = (obj) ->
+  if _.isBuffer obj
+    "Buffer[#{obj.toString().length}]"
+  else
+    obj
+
 ###### AlienModelOperation ####################################################
 
 class AlienModelOperation extends AlienCommander
@@ -314,8 +320,8 @@ class AlienModelBase extends AlienCommander
 
   defaultDumpParams: (s, op, safe, unsafe) ->
     s.info "Model #{@name} op #{op.name} params",
-      safe: safe
-      unsafe: unsafe
+      safe: _.mapValues safe, log_filter_buffer
+      unsafe: _.mapValues unsafe, log_filter_buffer
 
   _jsonObjectAccessFilter: (s, json, context, _vars) ->
     Promise.resolve json
