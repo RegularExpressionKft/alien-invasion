@@ -17,7 +17,7 @@ true_object = (keys) ->
 
 log_filter_buffer = (obj) ->
   if _.isBuffer obj
-    "Buffer[#{obj.toString().length}]"
+    "Buffer[#{obj.length}]"
   else
     obj
 
