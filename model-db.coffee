@@ -419,20 +419,35 @@ class AlienDbModel extends AlienModelBase
     p
 
   opUpdateAction: (s, op, id, properties, db_options) ->
-    if !db_options? and op? and
-       (obj = op.getCached(s, 'object') ? op.getPromise(s, 'object'))?
-      db_options = object: obj
+    p_object =
+      if !op?
+        null
+      else if op.hasCached s, 'object'
+        op.getCached s, 'object'
+      else if op.hasPromise s, 'object'
+        op.getPromise s, 'object'
+      else
+        null
 
-    p = @promiseUpdatedDbObject s, op,
-      (id ? op.promise s, 'id'),
-      (properties ? op.promise s, 'properties'),
-      db_options
-    if op?
-      p.then (obj) ->
-        op.setCached s, 'object', obj
-        obj
+    if p_object?
+      p_properties = properties ? op.promise s, 'properties'
+      Promise.join p_object, p_properties, (object, properties) =>
+        if _.isEmpty properties
+          object
+        else
+          object.set properties
+          @promiseSavedDbObject s, op, object, db_options
     else
-      p
+      p = @promiseUpdatedDbObject s, op,
+        (id ? op.promise s, 'id'),
+        (properties ? op.promise s, 'properties'),
+        db_options
+      if op?
+        p.then (obj) ->
+          op.setCached s, 'object', obj
+          obj
+      else
+        p
 
   # TODO cache?
   opDeleteAction: (s, op, id, db_options) ->
