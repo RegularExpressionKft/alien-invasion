@@ -186,7 +186,7 @@ class AlienTestUtils
     .then (ws) =>
       new Promise (resolve, reject) =>
         if p?.loc?
-          cd ws, resolve, (error) => reject @localizeError error, p.loc
+          cb ws, resolve, (error) => reject @localizeError error, p.loc
         else
           cb ws, resolve, reject
       .finally ->
