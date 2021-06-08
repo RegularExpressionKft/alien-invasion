@@ -120,13 +120,32 @@ class AlienTestUtils
 
   extractResult: (res) -> res.body
 
+  localizeError: (error, loc) ->
+    if loc?
+      if _.isString error
+        "#{loc}: #{error}"
+      else if _.isObject error
+        error.message = "#{loc}: #{error.message}" if _.isString error.message
+
+        if error.loc?
+          error.loc = [ loc ].concat error.loc if _.isArray error.loc
+        else
+          error.loc = [ loc ]
+
+        error
+      else
+        error
+    else
+      error
+
   cmpSuperObj: (got, expected) ->
     !_.find _.keys(expected), (k) -> !_.isEqual got[k], expected[k]
-  assertSuperObj: (got, expected) ->
+  assertSuperObj: (got, expected, loc) ->
     missed = _.filter _.keys(expected), (k) -> !_.isEqual got[k], expected[k]
-    assert.equal missed.length, 0, "Missing/bad keys: #{missed.join(', ')}"
-  superObj: (expected) ->
-    (res) => @assertSuperObj (@extractResult res), expected
+    assert.equal missed.length, 0,
+      @localizeError "Missing/bad keys: #{missed.join(', ')}", loc
+  superObj: (expected, loc) ->
+    (res) => @assertSuperObj (@extractResult res), expected, loc
 
   filterSuperObj: (got_list, expected) ->
     if _.isArray got_list
@@ -135,15 +154,15 @@ class AlienTestUtils
     else
       []
 
-  includesSuperObj: (expected) ->
+  includesSuperObj: (expected, loc) ->
     (res) =>
       matching = @filterSuperObj (@extractResult res), expected
-      assert (matching.length <= 1), "Many superobjects"
-      assert (matching.length > 0), "No superobjects"
-  notIncludesSuperObj: (expected) ->
+      assert (matching.length <= 1), @localizeError "Many superobjects", loc
+      assert (matching.length > 0), @localizeError "No superobjects", loc
+  notIncludesSuperObj: (expected, loc) ->
     (res) =>
       matching = @filterSuperObj (@extractResult res), expected
-      assert.equal matching.length, 0, "Has superobjects"
+      assert.equal matching.length, 0, @localizeError "Has superobjects", loc
 
   promiseWs: Promise.method (p) ->
     p = _.extend
@@ -164,8 +183,12 @@ class AlienTestUtils
       cb = p
       p = null
     @promiseWs p
-    .then (ws) ->
-      new Promise (resolve, reject) -> cb ws, resolve, reject
+    .then (ws) =>
+      new Promise (resolve, reject) =>
+        if p?.loc?
+          cd ws, resolve, (error) => reject @localizeError error, p.loc
+        else
+          cb ws, resolve, reject
       .finally ->
         ws?.terminate()
         ws = null
@@ -174,13 +197,13 @@ class AlienTestUtils
     if !cb? and _.isFunction p
       cb = p
       p = null
-    @wsPromise p, (ws, resolve, reject) ->
+    @wsPromise p, (ws, resolve, reject) =>
       ws.on 'fail', reject
       if p.event?
-        ws.on 'event', (msg) ->
+        ws.on 'event', (msg) =>
           try
-            assert _.isString(msg.channel), 'event has channel'
-            assert msg.data?, 'event has data'
+            assert _.isString(msg.channel), @localizeError 'Event has channel', p?.loc
+            assert msg.data?, @localizeError 'Event has data', p?.loc
             p.event ws, resolve, reject, msg
           catch error
             reject error
