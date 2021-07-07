@@ -62,7 +62,11 @@ class AlienModelOperation extends AlienCommander
     else
       new @ spec
 
-  instantiate: (s, options) -> Object.create @
+  instantiate: (s, options) ->
+    ret = Object.create @
+    ret.hooks = ret.hooks.derive()
+    ret.checkers = ret.checkers.derive()
+    ret
 
   init: (s, options) ->
     @options = _.defaultsDeep {}, options, @options
