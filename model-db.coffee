@@ -416,7 +416,7 @@ class AlienDbModel extends AlienModelBase
         op.promiseToCache(s, 'id', p.then (obj) => @extractId s, obj),
         (obj) -> obj)
     else
-    p
+      p
 
   opUpdateAction: (s, op, id, properties, db_options) ->
     p_object =
