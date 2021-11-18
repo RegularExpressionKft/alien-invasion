@@ -1,4 +1,5 @@
 Promise = require 'bluebird'
+assert = require 'assert'
 _ = require 'lodash'
 
 AlienModelBase = require './model-base'
@@ -30,7 +31,8 @@ class AlienDbModel extends AlienModelBase
       @master.config 'bookshelfConfig'
 
   _makeBookshelf: ->
-    @bookshelf.Model.extend @getBookshelfConfig()
+    assert _.isArray(@idFields), "#{@name}: idFields is array"
+    @bookshelf.Model.extend @bookshelfConfig = @getBookshelfConfig()
 
   defaultDbOptions: (s, op, db_op) ->
     db_options = {}
@@ -56,7 +58,7 @@ class AlienDbModel extends AlienModelBase
 
   knex: (s) ->
     knex = @getKnex s
-    knex @getBookshelfConfig().tableName
+    knex @bookshelfConfig.tableName
 
   knexRaw: (s, sql...) ->
     Promise.resolve(
@@ -80,7 +82,7 @@ class AlienDbModel extends AlienModelBase
         else
           @[rel.type] bookshelf.model(rel.modelName)
 
-# ---- Loaders ----------------------------------------------------------------
+# ---- Utils ------------------------------------------------------------------
 
   _make404: (s, op, exception) ->
     (error) =>
@@ -100,13 +102,25 @@ class AlienDbModel extends AlienModelBase
           qb.where name, operator, argument for operator, argument of value
         else
           qb.where name, value
+    else if _.isString filters
+      qb.where @idFromString filters
     else
-      qb.where @idFields[0], filters
+      throw new Error "#{@name}: Bad id"
 
     qb.limit 2 if db_op is 'select-one'
 
     # s.debug "#{@name} SQL", qb.toString()
     qb
+
+  # model.on 'event', @_fixCompositeIndex
+  _fixCompositeIndex: (obj, columns, options) =>
+    w = {}
+    for f in @idFields when f isnt 'id'
+      w[f] = t if (t = obj.previous f)? or _.isNull t
+    options.query.where w unless _.isEmpty w
+    null
+
+# ---- Loaders ----------------------------------------------------------------
 
   promiseLoadedDbObjects: (s, op, p_filters, p_db_options) ->
     p_filters ?= op.promise s, 'filters' if op?
@@ -147,7 +161,10 @@ class AlienDbModel extends AlienModelBase
       p_db_options = @dbOptions s, op, "#{db_op}.refresh",
         parent_db_options.alienRefreshOptions ?
           parent_db_options.alienLoadOrRefreshOptions
-      Promise.join p, p_db_options, (obj, db_options) ->
+      Promise.join p, p_db_options, (obj, db_options) =>
+        if @useCompositeId and !obj.__alien_installed_fetching
+          obj.__alien_installed_fetching = true
+          obj.on 'fetching', @_fixCompositeIndex
         obj.refresh db_options
     else
       p
@@ -173,6 +190,13 @@ class AlienDbModel extends AlienModelBase
 
   # TODO/BUG composite key unsafe
   # Not really fixable until bookshelf is fixed.
+
+  _promiseSavedDbObject: (s, op, obj, attrs, db_options) ->
+    if @useCompositeId and !obj.__alien_installed_updating
+      obj.__alien_installed_updating = true
+      obj.on 'updating', @_fixCompositeIndex
+    obj.save attrs, db_options
+
   promiseSavedDbObject: (s, op, p_db_object, p_db_options) ->
     db_op = 'update-loaded'
     @dbOptions s, op, db_op, p_db_options
@@ -181,14 +205,17 @@ class AlienDbModel extends AlienModelBase
         Promise.join p_db_object,
           (db_object) =>
             db_options_ = _.extend require: true, db_options
-            p = if !db_object.isNew() and (db_options_.patch ?= true)
-                save = _.filter _.keys(db_object.attributes), (k) -> db_object.hasChanged k
-                if save.length
-                  db_object.save db_object.pick(save), db_options_
-                else
-                  Promise.resolve db_object
+            p =
+              if db_object.isNew()
+                @_promiseSavedDbObject s, op, db_object, null, db_options_
               else
-                db_object.save null, db_options_
+                save = _.filter _.keys(db_object.attributes), (k) ->
+                  db_object.hasChanged k
+                if _.isEmpty save
+                  Promise.resolve db_object
+                else
+                  db_options_.patch ?= true
+                  @_promiseSavedDbObject s, op, db_object, db_object.pick(save), db_options_
             p.catch @_make404 s, op, @bookshelfModel.NoRowsUpdatedError
 
   _directUpdateDbObject: (s, op, p_id, p_properties, p_db_options) ->
@@ -227,10 +254,12 @@ class AlienDbModel extends AlienModelBase
     if op?
       p_id ?= op.promise s, 'id'
       p_properties ?= op.promise s, 'properties'
-    if @idFields.length > 1
-      @_loadUpdateDbObject s, op, p_id, p_properties, p_db_options
-    else
-      @_directUpdateDbObject s, op, p_id, p_properties, p_db_options
+    Promise.join p_id, (id) =>
+      id = @idFromString id if _.isString id
+      if (id_attr = @bookshelfConfig.idAttribute)? and id?[id_attr]?
+        @_directUpdateDbObject s, op, id, p_properties, p_db_options
+      else
+        @_loadUpdateDbObject s, op, id, p_properties, p_db_options
 
   promiseDeletedDbObject: (s, op, p_id, p_db_options) ->
     p_id ?= op.promise s, 'id' if op?
