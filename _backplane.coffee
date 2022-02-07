@@ -1,3 +1,5 @@
+Promise = require 'bluebird'
+assert = require 'assert'
 _ = require 'lodash'
 
 class AlienBackplane
@@ -12,12 +14,6 @@ class AlienBackplane
     #   endpoint_id: @endpoints[endpoint_id]
     @channels = Object.create null
 
-  _unsubscribe: (channel_id, endpoint_id) ->
-    endpoints = @channels[channel_id]
-    delete endpoints[endpoint_id]
-    delete @channels[c] if _.isEmpty endpoints
-    null
-
   register: (endpoint_id, cb) ->
     if @endpoints[endpoint_id]?
       throw new Error "Duplicate endpoint: #{endpoint_id}"
@@ -27,50 +23,105 @@ class AlienBackplane
       channels: Object.create null
     @
   unregister: (endpoint_id) ->
+    federate_unsubscribe = []
     if @endpoints[endpoint_id]?
       for channel_id, channel of @endpoints[endpoint_id].channels
         delete channel[endpoint_id]
-        delete @channels[channel_id] if _.isEmpty channel
+        if _.isEmpty channel
+          federate_unsubscribe.push channel_id
+          delete @channels[channel_id]
       delete @endpoints[endpoint_id]
+
+      unless _.isEmpty federate_unsubscribe
+        @federate_unsubscribe federate_unsubscribe
     @
 
   subscribe: (endpoint_id, channel_ids...) ->
     subscribed = []
+    federate_subscribe = []
+
     endpoint = @endpoints[endpoint_id] ?
       throw new Error "Unknown endpoint: #{endpoint_id}"
+
     for channel_id in _.flatten channel_ids
       unless endpoint.channels[channel_id]?
+        federate_subscribe.push channel_id unless @channels[channel_id]?
         channel = @channels[channel_id] ?= {}
         channel[endpoint_id] = endpoint
         endpoint.channels[channel_id] = channel
         subscribed.push channel_id
+
+    unless _.isEmpty federate_subscribe
+      @federate_unsubscribe federate_subscribe
+
     subscribed
-  unsubscribe: (endpoint_id, channel_ids...) ->
-    unsubscribed = []
+
+  promiseSubscribe: (endpoint_id, channel_ids...) ->
+    subscribed = []
+    federate_subscribe = []
+
     endpoint = @endpoints[endpoint_id] ?
       throw new Error "Unknown endpoint: #{endpoint_id}"
+
+    for channel_id in _.flatten channel_ids
+      unless endpoint.channels[channel_id]?
+        federate_subscribe.push channel_id unless @channels[channel_id]?
+        channel = @channels[channel_id] ?= {}
+        channel[endpoint_id] = endpoint
+        endpoint.channels[channel_id] = channel
+        subscribed.push channel_id
+
+    if _.isEmpty federate_subscribe
+      Promise.resolve subscribed
+    else
+      @federate_unsubscribe federate_subscribe, subscribed
+
+  unsubscribe: (endpoint_id, channel_ids...) ->
+    unsubscribed = []
+    federate_unsubscribe = []
+
+    endpoint = @endpoints[endpoint_id] ?
+      throw new Error "Unknown endpoint: #{endpoint_id}"
+
     channels = endpoint.channels
     for channel_id in _.flatten channel_ids
       channel = channels[channel_id]
       if channel?
         delete channels[channel_id]
         delete channel[endpoint_id]
-        delete @channels[channel_id] if _.isEmpty channel
+        if _.isEmpty channel
+          federate_unsubscribe.push channel_id
+          delete @channels[channel_id]
         unsubscribed.push channel_id
+
+    unless _.isEmpty federate_unsubscribe
+      @federate_unsubscribe federate_unsubscribe
+
     unsubscribed
+
   unsubscribeAll: (endpoint_id) ->
     unsubscribed = []
+    federate_unsubscribe = []
+
     endpoint = @endpoints[endpoint_id] ?
       throw new Error "Unknown endpoint: #{endpoint_id}"
+
     channels = endpoint.channels
     for channel_id in _.keys channels
       channel = channels[channel_id]
       if channel?
         delete channels[channel_id]
         delete channel[endpoint_id]
-        delete @channels[channel_id] if _.isEmpty channel
+        if _.isEmpty channel
+          federate_unsubscribe.push channel_id
+          delete @channels[channel_id]
         unsubscribed.push channel_id
+
+    unless _.isEmpty federate_unsubscribe
+      @federate_unsubscribe federate_unsubscribe
+
     unsubscribed
+
   listSubscriptions: (endpoint_id) ->
     endpoint = @endpoints[endpoint_id] ?
       throw new Error "Unknown endpoint: #{endpoint_id}"
@@ -85,14 +136,16 @@ class AlienBackplane
           @app.error "Backplane #{endpoint_id} exception:", error
     null
 
-  # override me
-  federate_out: (channel_ids, messages) -> null
-
   publish: (channel_ids, messages...) ->
     channel_ids = [ channel_ids ] unless _.isArray channel_ids
     if @federate_out channel_ids, messages
       null
     else
       @federate_in channel_ids, messages
+
+  # override me
+  federate_out: (channel_ids, messages) -> null
+  federate_subscribe: (channel_ids, subscribed) -> Promise.resolve subscribed
+  federate_unsubscribe: (channel_ids, unsubscribed) -> Promise.resolve unsubscribed
 
 module.exports = AlienBackplane
