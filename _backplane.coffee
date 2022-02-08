@@ -52,7 +52,7 @@ class AlienBackplane
         subscribed.push channel_id
 
     unless _.isEmpty federate_subscribe
-      @federate_unsubscribe federate_subscribe
+      @federate_subscribe federate_subscribe
 
     subscribed
 
@@ -74,7 +74,7 @@ class AlienBackplane
     if _.isEmpty federate_subscribe
       Promise.resolve subscribed
     else
-      @federate_unsubscribe federate_subscribe, subscribed
+      @federate_subscribe federate_subscribe, subscribed
 
   unsubscribe: (endpoint_id, channel_ids...) ->
     unsubscribed = []
