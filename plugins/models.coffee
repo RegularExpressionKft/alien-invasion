@@ -1,5 +1,6 @@
 Promise = require 'bluebird'
 require_source = require 'alien-utils/require-sources'
+assert = require 'assert'
 _ = require 'lodash'
 
 AlienPlugin = require '../plugin'
@@ -17,6 +18,15 @@ class AlienModelLoader extends AlienPlugin
       dirname: config.dir
     @models = _.mapValues @modelMakers,
       (Cls, name) => new Cls @app, @, name
+    @_alive = true
+    null
+
+  start: ->
+    @_alive = true
+    null
+
+  stop: ->
+    @_alive = false
     null
 
   model: (model_name) -> @models[model_name]
@@ -25,6 +35,8 @@ class AlienModelLoader extends AlienPlugin
     @bookshelf ?= @app.module @config 'bookshelfModule'
 
   transaction: (s, cb) ->
+    assert @_alive, 'alive'
+
     if (my_stash = _.isFunction(s) and !cb?)
       cb = s
       s = @app.makeStash()
@@ -36,6 +48,7 @@ class AlienModelLoader extends AlienPlugin
       id: "#{s.id}:#{seq}"
       previous: s.transaction
 
+    traceback = new Error 'Transaction traceback'
     rollback_marker = null
 
     s.emit 'before_begin', transaction
@@ -126,6 +139,7 @@ class AlienModelLoader extends AlienPlugin
         if _.isFunction transaction.chain
           transaction.chain transaction
         else if transaction.reject?
+          s.debug 'Transaction rejection traceback:', traceback
           Promise.reject transaction.reject
         else
           transaction.resolve)
