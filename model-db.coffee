@@ -36,10 +36,25 @@ class AlienDbModel extends AlienModelBase
 
   defaultDbOptions: (s, op, db_op) ->
     db_options = {}
+
     db_options.transacting = s.transaction.trx if s.transaction?
-    if (wr = op?.options.withRelated)? and
-       (!db_op? or db_op.match /select|refresh/)
-      db_options.withRelated = wr
+
+    if op?
+      if !db_op? or db_op.match /select|refresh/
+        db_options.withRelated = wr if (wr = op.options.withRelated)?
+
+        if op.options.lock? and !!op.options.lock
+          db_options.lock =
+            if _.isString op.options.lock
+              op.options.lock
+            else if op.isReadonly
+              'forShare'
+            else
+              'forUpdate'
+
+      if _.has(op.options, 'accessControl')
+        db_options.accessControl = op.options.accessControl
+
     Promise.resolve db_options
 
   dbOptions: (s, op, db_op, p_db_options) ->
