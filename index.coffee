@@ -89,10 +89,20 @@ class AlienInvasion extends EventEmitter
 
   loadPlugin: (plugin_name) ->
     @debug? "Loading plugin #{plugin_name}"
+
     plugin_dir = @config.pluginDir ? 'plugins'
-    (optional "#{process.cwd()}/#{plugin_dir}/#{plugin_name}") ?
-      (optional "./#{plugin_dir}/#{plugin_name}") ?
-      throw new Error "No plugin: #{plugin_name} (#{plugin_dir})"
+    alternatives =
+      if _.isArray plugin_dir
+        plugin_dir.map (d) ->
+          "#{process.cwd()}/#{d}/#{plugin_name}"
+      else
+        [ "#{process.cwd()}/#{plugin_dir}/#{plugin_name}" ]
+    alternatives.push "./plugins/#{plugin_name}"
+
+    for a in alternatives when (p = optional a)?
+      return p
+
+    throw new Error "No plugin: #{plugin_name} (#{alternatives.join ', '})"
 
   _initPlugin: (plugin, args...) ->
     if (_.isObject plugin) && plugin.alienInit?
