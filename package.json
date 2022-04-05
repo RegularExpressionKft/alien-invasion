@@ -19,11 +19,11 @@
   "dependencies": {
     "alien-utils": "git+https://github.com/RegularExpressionKft/alien-utils.git",
     "bluebird": "^3.4.7",
-    "body-parser": "^1.15.2",
+    "body-parser": "^1.20.0",
     "bookshelf": "^1.0.1",
     "coffeescript": "^1.12.7",
-    "cookie-parser": "^1.4.3",
-    "express": "^4.14.0",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.17.3",
     "handlebars": "^4.7.7",
     "knex": "^0.20.1",
     "lodash": "^4.17.21",
@@ -33,6 +33,6 @@
     "supertest": "^4.0.2",
     "uuid": "^3.0.1",
     "winston": "^2.3.0",
-    "ws": "^7.4.6"
+    "ws": "^7.5.7"
   }
 }

@@ -80,7 +80,9 @@ class AlienTestUtils
     realtimeUrl: "#{ws}/realtime"
     webrtcUrl: "#{b}/janus"
 
-  @prepare: (app, test) -> null
+  @prepare: (app, test) ->
+    app.decorateWithNewLogger @, 'TEST'
+    null
 
   @before: (test) ->
     @_runBeforeApp()
