@@ -105,6 +105,9 @@ class AlienExpress extends AlienPlugin
     @router = express.Router()
     @server = Http.Server @express
 
+    if @config('timeout')?
+      @server.timeout = @config 'timeout'
+
     middlewares = @config 'middleware'
     order = _.keys(middlewares).filter (m) ->
       (mw = middlewares[m])? and
