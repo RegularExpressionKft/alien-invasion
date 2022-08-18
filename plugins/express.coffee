@@ -49,6 +49,7 @@ class AlienExpress extends AlienPlugin
   defaultConfig:
     port: 6543
     size_limit: '4mb'
+    timeout: null
     middleware:
       'alien-logger':
         priority: 0
@@ -105,8 +106,7 @@ class AlienExpress extends AlienPlugin
     @router = express.Router()
     @server = Http.Server @express
 
-    if @config('timeout')?
-      @server.timeout = @config 'timeout'
+    @server.timeout = t if (t = @config 'timeout')?
 
     middlewares = @config 'middleware'
     order = _.keys(middlewares).filter (m) ->
