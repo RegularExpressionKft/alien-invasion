@@ -19,20 +19,20 @@
   "dependencies": {
     "alien-utils": "git+https://github.com/RegularExpressionKft/alien-utils.git",
     "bluebird": "^3.4.7",
-    "body-parser": "^1.20.0",
+    "body-parser": "^1.20.1",
     "bookshelf": "^1.0.1",
     "coffeescript": "^1.12.7",
     "cookie-parser": "^1.4.6",
-    "express": "^4.17.3",
+    "express": "^4.18.2",
     "handlebars": "^4.7.7",
-    "knex": "^2.1.0",
+    "knex": "^2.3.0",
     "lodash": "^4.17.21",
     "methods": "^1.1.2",
     "path-to-regexp": "^1.7.0",
-    "superagent": "^6.1.0",
-    "supertest": "^4.0.2",
+    "superagent": "^8.0.5",
+    "supertest": "^6.3.2",
     "uuid": "^3.0.1",
-    "winston": "^2.3.0",
-    "ws": "^7.5.7"
+    "winston": "^2.4.7",
+    "ws": "^7.5.9"
   }
 }
