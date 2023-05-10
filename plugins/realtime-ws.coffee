@@ -24,17 +24,25 @@ class AlienRealtimeWsClient extends AlienWs
   subscribe: (channels) ->
     subscribed = @app.backplane.subscribe @_bpId, channels
     @debug 'subscribed', subscribed
+
+    all = @app.backplane.listSubscriptions @_bpId
     @sendJSON
       type: 'subscribed'
-      channels: subscribed
+      subscribed: subscribed
+      channels: channels.filter (c) -> c in all
+
     subscribed
 
   unsubscribe: (channels) ->
     unsubscribed = @app.backplane.unsubscribe @_bpId, channels
     @debug 'unsubscribed', unsubscribed
+
+    all = @app.backplane.listSubscriptions @_bpId
     @sendJSON
       type: 'unsubscribed'
-      channels: unsubscribed
+      unsubscribed: unsubscribed
+      channels: channels.filter (c) -> c not in all
+
     unsubscribed
 
   _deactivate: ->
