@@ -151,7 +151,7 @@ class AlienController extends AlienCommander
                           ((e) => @_actionRejected s, e)
                     .then (r) =>
                       r.result ?= 'success'
-                      if @app.config.dump_response
+                      if @app.config.dump_response or r.result isnt 'success'
                         s.debug 'Response:', r.dump()
                       s.emit 'response', r
                       # r.result can be 'error'
