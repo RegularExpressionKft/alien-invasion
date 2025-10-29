@@ -1,7 +1,7 @@
 Promise = require 'bluebird'
 WebSocket = require 'ws'
 EventEmitter = require 'events'
-pathToRegexp = require 'path-to-regexp'
+PathToRegexp = require 'path-to-regexp'
 pu = require 'alien-utils/promise'
 uuid = require 'uuid'
 url = require 'url'
@@ -27,7 +27,7 @@ class AlienWsRouter
     route.id = ++@routeSeq
     if path?
       route.path = path
-      route.re =  pathToRegexp path,
+      route.re =  PathToRegexp.pathToRegexp path,
         route.keys = [],
         _.pick route, ['end', 'strict', 'sensitive']
     @routes.push route
